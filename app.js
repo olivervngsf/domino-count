@@ -1,7 +1,7 @@
 const $ = s => document.querySelector(s);
 const KEY = 'domino-train-count';
 
-const defaultState = () => ({ players: [], set: 12, blank50: false, current: 0, scores: {} });
+const defaultState = () => ({ players: [], set: 15, rounds: 15, blank50: false, current: 0, scores: {} });
 let state = load();
 
 function load() {
@@ -14,8 +14,9 @@ function save() {
 }
 
 // Rounds run from the highest double down to double-blank.
-const roundCount = () => state.set + 1;
-const roundDouble = i => state.set - i;
+const roundCount = () => state.rounds;
+// Engine double for a round counts down from the set's highest double.
+const roundDouble = i => (state.set - i >= 0 ? state.set - i : null);
 const score = (pid, r) => state.scores[`${pid}:${r}`];
 const setScore = (pid, r, v) => {
   const k = `${pid}:${r}`;
@@ -31,7 +32,7 @@ function render() {
 
   const r = state.current;
   $('#roundTitle').textContent = `Round ${r + 1} of ${roundCount()}`;
-  $('#roundSub').textContent = `Engine: double-${roundDouble(r)}`;
+  $('#roundSub').textContent = roundDouble(r) === null ? '' : `Engine: double-${roundDouble(r)}`;
   $('#prevRound').disabled = r === 0;
   $('#nextRound').disabled = r === roundCount() - 1;
 
@@ -48,7 +49,7 @@ function render() {
   const leaderTotal = Math.min(...state.players.map(p => total(p.id)));
   const anyScore = Object.keys(state.scores).length > 0;
   const head = `<tr><th>Player</th>${Array.from({ length: roundCount() }, (_, i) =>
-    `<th class="${i === r ? 'cur' : ''}">${roundDouble(i)}</th>`).join('')}<th>Total</th></tr>`;
+    `<th class="${i === r ? 'cur' : ''}" title="Round ${i + 1}">${i + 1}</th>`).join('')}<th>Total</th></tr>`;
   const rows = [...state.players].sort((a, b) => total(a.id) - total(b.id)).map(p => `
     <tr class="${anyScore && total(p.id) === leaderTotal ? 'leader' : ''}">
       <td>${esc(p.name)}</td>
@@ -107,14 +108,16 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 
 $('#settingsBtn').onclick = () => {
   $('#setSize').value = state.set;
+  $('#roundsIn').value = state.rounds;
   $('#blank50').checked = state.blank50;
   $('#settingsDlg').showModal();
 };
-$('#setSize').onchange = async e => {
-  if (Object.keys(state.scores).length && !await ask('Changing the set clears all scores. Continue?')) {
-    e.target.value = state.set; return;
-  }
-  state.set = +e.target.value; state.scores = {}; state.current = 0; save();
+$('#setSize').onchange = e => { state.set = +e.target.value; save(); };
+$('#roundsIn').onchange = e => {
+  state.rounds = Math.min(30, Math.max(1, Math.round(+e.target.value) || 15));
+  e.target.value = state.rounds;
+  state.current = Math.min(state.current, state.rounds - 1);
+  save();
 };
 $('#blank50').onchange = e => { state.blank50 = e.target.checked; save(); };
 $('#newGame').onclick = async () => {
