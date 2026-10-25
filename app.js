@@ -114,7 +114,9 @@ function renderBoard() {
 
   const head = `<thead><tr><th>Player</th>${Array.from({ length: roundCount() }, (_, i) =>
     `<th class="${i === r ? 'cur' : ''}"><button class="col-btn" data-col="${i}" aria-label="Go to ${roundLabel(i)}">${roundDouble(i) ?? i + 1}</button></th>`).join('')}<th>Total</th></tr></thead>`;
-  const rows = list.map(o => `
+  // Rounds grid keeps seating order (the order set with Reorder); Standings is the ranked view.
+  const byId = Object.fromEntries(list.map(o => [o.p.id, o]));
+  const rows = state.players.map(p => byId[p.id]).map(o => `
     <tr class="${anyScore && o.rank === 1 ? 'leader' : ''}">
       <td>${esc(o.p.name)}</td>
       ${Array.from({ length: roundCount() }, (_, i) => `<td class="${i === r ? 'cur' : ''}"><button class="cell-btn" data-cell="${o.p.id}" data-r="${i}" aria-label="${esc(o.p.name)}, ${roundLabel(i)}">${score(o.p.id, i) ?? ''}</button></td>`).join('')}
