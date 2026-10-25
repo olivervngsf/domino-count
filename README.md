@@ -5,7 +5,9 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
 - **Players** – add / remove anyone.
 - **Rounds** – 15 by default (change in ⚙︎). Engine double counts down from the set (6, 9, 12, 15).
 - **Score each player 3 ways**
-  - 📷 **Scan** – snap a photo of leftover tiles, pips get counted automatically. Tap to fix misses.
+  - 📷 **Scan** – snap a photo of leftover tiles.
+    - Inside Claude (artifact): Claude reads printed numbers (0–15, any rotation, 6 vs 9). Fix or add tiles after.
+    - Anywhere else: local dot counter for pip tiles. Tap to fix misses.
   - 🁣 **Tap tiles** – pick both halves of each tile.
   - Type the number.
 - **Scoreboard** – per-round grid + totals, lowest total wins 👑.

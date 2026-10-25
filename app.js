@@ -129,8 +129,8 @@ $('#newGame').onclick = async () => {
 // ---------- tile picker ----------
 let tilePid, picked = [], half = null;
 const tileValue = ([a, b]) => (a === 0 && b === 0 && state.blank50 ? 50 : a + b);
-function openTiles(pid) {
-  tilePid = pid; picked = []; half = null;
+function openTiles(pid, start = []) {
+  tilePid = pid; picked = start.map(t => [...t]); half = null;
   $('#tileWho').textContent = playerName(pid);
   renderTiles();
   $('#tileDlg').showModal();
@@ -159,16 +159,35 @@ $('#tileSave').onclick = () => {
 };
 
 // ---------- camera scan ----------
-let scanPid, scanImg = null, pips = [];
+// Two ways to read a photo: Claude reads printed numbers (when the page runs
+// inside Claude), or the local pip counter counts dots.
+let scanPid, scanImg = null, scanFile = null, pips = [];
+let scanMode = 'dots', readTiles = [], readCtl = null, sampleFn = null, sampleLimits = null;
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
+
+(async () => {
+  const s = window.claude?.use ? await window.claude.use('sample').catch(() => null) : null;
+  sampleLimits = s && await s.limits().catch(() => null);
+  if (sampleLimits?.images) sampleFn = s;
+})();
+
+const readPrompt = () => `This photo shows Mexican Train dominoes left in a player's hand at the end of a round.
+Read the two ends of every tile. Ends show printed numerals (often colored, 0 to ${Math.max(state.set, 12)}) or pip dots; a blank end is 0. A line across the middle splits each tile into its two ends.
+Tiles and numerals are often rotated sideways or upside down. All numerals on one tile face the same way: find which way is up from unambiguous digits on that tile or nearby tiles (1, 2, 3, 4, 5, 7, two-digit numbers), then read 6 versus 9 with that orientation. An underline under a numeral marks its bottom.
+Count each tile once; ignore anything that is not a domino.
+Reply with only JSON like {"tiles": [[3, 12], [0, 7]]}.`;
+
 function openScan(pid) {
-  scanPid = pid; scanImg = null; pips = [];
+  scanPid = pid; scanImg = null; scanFile = null; pips = []; readTiles = [];
+  scanMode = sampleFn ? 'read' : 'dots';
   $('#scanWho').textContent = playerName(pid);
   $('#scanArea').classList.add('hidden');
   $('#scanSave').disabled = true;
   $('#scanTotal').textContent = 0;
   $('#scanDlg').showModal();
 }
+$('#scanDlg').addEventListener('close', () => readCtl?.abort());
+
 function onFile(e) {
   const file = e.target.files[0];
   e.target.value = '';
@@ -180,10 +199,10 @@ function onFile(e) {
     canvas.height = Math.round(img.height * scale);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     scanImg = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    scanFile = file;
     URL.revokeObjectURL(img.src);
     $('#scanArea').classList.remove('hidden');
-    $('#scanSave').disabled = false;
-    runDetect();
+    runScan();
   };
   img.src = URL.createObjectURL(file);
 }
@@ -191,6 +210,63 @@ $('#camInput').onchange = onFile;
 $('#fileInput').onchange = onFile;
 $('#sens').oninput = () => scanImg && runDetect();
 $('#darkTiles').onchange = () => scanImg && runDetect();
+$('#modeRead').onclick = () => { scanMode = 'read'; runScan(); };
+$('#modeDots').onclick = () => { scanMode = 'dots'; runScan(); };
+$('#readAgain').onclick = () => readWithClaude(true);
+$('#readFix').onclick = () => { $('#scanDlg').close(); openTiles(scanPid, readTiles); };
+
+function runScan() {
+  if (!sampleFn) scanMode = 'dots';
+  $('#modeRow').classList.toggle('hidden', !sampleFn);
+  $('#modeRead').classList.toggle('sel', scanMode === 'read');
+  $('#modeDots').classList.toggle('sel', scanMode === 'dots');
+  $('#readBox').classList.toggle('hidden', scanMode !== 'read');
+  $('#dotBox').classList.toggle('hidden', scanMode !== 'dots');
+  if (scanMode === 'read') { ctx.putImageData(scanImg, 0, 0); readWithClaude(); }
+  else { readCtl?.abort(); $('#scanSave').disabled = false; runDetect(); }
+}
+
+function renderRead(status) {
+  $('#readStatus').textContent = status;
+  $('#readTiles').innerHTML = readTiles.map((t, i) =>
+    `<span class="chip tile-chip">${t[0]}|${t[1]}<button data-rm="${i}" aria-label="Remove tile">✕</button></span>`).join('');
+  $('#scanTotal').textContent = readTiles.reduce((s, t) => s + tileValue(t), 0);
+}
+$('#readTiles').addEventListener('click', e => {
+  const i = e.target.dataset.rm;
+  if (i !== undefined) { readTiles.splice(+i, 1); renderRead($('#readStatus').textContent); }
+});
+
+const READ_ERRORS = {
+  rate_limited: 'Too many reads right now. Wait a moment, then tap Read again.',
+  session_expired: 'Sign in to Claude again, then tap Read again.',
+  image_rejected: 'That photo could not be used. Try another photo.',
+  refused: 'Claude could not read this photo. Try another photo.',
+  invalid_json: 'The answer came back garbled. Tap Read again.',
+};
+async function readWithClaude(again = false) {
+  readCtl?.abort();
+  const ctl = readCtl = new AbortController();
+  readTiles = [];
+  renderRead('Reading tiles…');
+  $('#scanSave').disabled = true;
+  try {
+    const okType = sampleLimits.images.mediaTypes.includes(scanFile.type) && scanFile.size <= sampleLimits.images.maxInputBytes;
+    const image = okType ? scanFile : await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+    const res = await sampleFn.json(readPrompt(), { images: [image], signal: ctl.signal, ...(again ? { cache: false } : {}) });
+    readTiles = (Array.isArray(res?.tiles) ? res.tiles : [])
+      .map(t => [Number(t?.[0]), Number(t?.[1])])
+      .filter(t => t.every(n => Number.isInteger(n) && n >= 0 && n <= 20));
+    renderRead(readTiles.length ? 'Check the tiles below. Tap ✕ to drop one, or fix / add tiles.' : 'No tiles found. Try a closer, brighter photo.');
+    $('#scanSave').disabled = false;
+  } catch (e) {
+    if (e?.code === 'cancelled') return;
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'images_unavailable'].includes(e?.code)) {
+      sampleFn = null; runScan(); return;
+    }
+    renderRead(READ_ERRORS[e?.code] || 'Could not read the photo. Tap Read again, or count dots.');
+  }
+}
 
 function runDetect() {
   pips = detectPips(scanImg, { sensitivity: +$('#sens').value, darkTiles: $('#darkTiles').checked });
@@ -204,6 +280,7 @@ function drawScan() {
   $('#scanTotal').textContent = pips.length;
 }
 canvas.addEventListener('click', e => {
+  if (scanMode !== 'dots') return;
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) * canvas.width / rect.width;
   const y = (e.clientY - rect.top) * canvas.height / rect.height;
@@ -217,7 +294,7 @@ canvas.addEventListener('click', e => {
   drawScan();
 });
 $('#scanSave').onclick = () => {
-  setScore(scanPid, state.current, pips.length);
+  setScore(scanPid, state.current, +$('#scanTotal').textContent);
   $('#scanDlg').close(); save();
 };
 

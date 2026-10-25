@@ -53,10 +53,24 @@
     </div>
     <div id="scanArea" class="scan-area hidden">
       <canvas id="scanCanvas"></canvas>
-      <p class="muted small">Tap a red dot to remove it · tap a missed pip to add it.</p>
-      <div class="row">
-        <label class="grow">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
-        <label class="check"><input id="darkTiles" type="checkbox"> Dark tiles</label>
+      <div id="modeRow" class="seg hidden">
+        <button id="modeRead" type="button">Read numbers</button>
+        <button id="modeDots" type="button">Count dots</button>
+      </div>
+      <div id="readBox" class="hidden">
+        <p id="readStatus" class="muted small"></p>
+        <div id="readTiles" class="chips"></div>
+        <div class="row">
+          <button id="readFix" type="button" class="ghost">Fix / add tiles</button>
+          <button id="readAgain" type="button" class="ghost">Read again</button>
+        </div>
+      </div>
+      <div id="dotBox">
+        <p class="muted small">Tap a red dot to remove it · tap a missed pip to add it.</p>
+        <div class="row">
+          <label class="grow">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+          <label class="check"><input id="darkTiles" type="checkbox"> Dark tiles</label>
+        </div>
       </div>
     </div>
     <div class="dlg-foot">
