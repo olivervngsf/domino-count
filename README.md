@@ -3,7 +3,7 @@
 Score keeper for Mexican Train / domino train games. Static web app, no build, works on phone.
 
 - **Players** – add / remove anyone.
-- **Rounds** – double-15 down to double-0 (16 rounds). Set and round count adjustable in ⚙︎.
+- **Rounds** – double-15 down to double-1 (15 rounds). Set and round count adjustable in ⚙︎.
 - **Score each player 3 ways**
   - 📷 **Scan** – snap a photo of leftover tiles.
     - Inside Claude (artifact): Claude reads printed numbers (0–15, any rotation, 6 vs 9). Fix or add tiles after.

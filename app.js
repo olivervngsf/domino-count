@@ -1,9 +1,9 @@
 const $ = s => document.querySelector(s);
 const KEY = 'domino-train-count';
 
-const defaultState = () => ({ players: [], set: 15, rounds: 16, blank50: false, current: 0, scores: {} });
+const defaultState = () => ({ players: [], set: 15, rounds: 15, blank50: false, current: 0, scores: {} });
 let state = load();
-// Rounds run from the set's top double down to double-blank (15…0 = 16 rounds).
+// Rounds run from the set's top double down to double-1 (15…1 = 15 rounds).
 // Scores are keyed by round index; keep each one on the same engine double when the set changes.
 function changeSet(newSet) {
   const shift = newSet - state.set, scores = {};
@@ -11,11 +11,11 @@ function changeSet(newSet) {
     const [pid, r] = k.split(':'); const nr = +r + shift;
     if (nr >= 0 && nr <= newSet) scores[`${pid}:${nr}`] = v;
   });
-  state.scores = scores; state.set = newSet; state.rounds = newSet + 1;
+  state.scores = scores; state.set = newSet; state.rounds = newSet;
   state.current = Math.min(Math.max(0, state.current + shift), state.rounds - 1);
 }
-// Older saves defaulted to double-12 / 15 rounds; this game is double-15, 15 → 0.
-if (!state.v3) { if (state.set !== 15) changeSet(15); state.rounds = 16; state.v3 = 1; }
+// Older saves defaulted to double-12 or 15 → 0; this game is double-15, 15 → 1.
+if (!state.v4) { if (state.set !== 15) changeSet(15); state.rounds = 15; state.current = Math.min(state.current, 14); state.v4 = 1; }
 
 function load() {
   try { return { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY)) }; }
