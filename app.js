@@ -171,7 +171,7 @@ $('#tileSave').onclick = () => {
 // Two ways to read a photo: Claude reads printed numbers (when the page runs
 // inside Claude), or the local pip counter counts dots.
 let scanPid, scanImg = null, scanFile = null, pips = [];
-let scanMode = 'dots', readTiles = [], readCtl = null, sampleFn = null, sampleLimits = null;
+let scanMode = 'dots', readTiles = [], readPos = [], readCtl = null, sampleFn = null, sampleLimits = null;
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
 // 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
@@ -191,11 +191,12 @@ const READER_HELP = {
 const readPrompt = () => `This photo shows Mexican Train dominoes left in a player's hand at the end of a round.
 Read the two ends of every tile. Ends show printed numerals (often colored, 0 to ${Math.max(state.set, 12)}) or pip dots; a blank end is 0. A line across the middle splits each tile into its two ends.
 Tiles and numerals are often rotated sideways or upside down. All numerals on one tile face the same way: find which way is up from unambiguous digits on that tile or nearby tiles (1, 2, 3, 4, 5, 7, two-digit numbers), then read 6 versus 9 with that orientation. An underline under a numeral marks its bottom.
-Count each tile once; ignore anything that is not a domino.
-Reply with only JSON like {"tiles": [[3, 12], [0, 7]]}.`;
+Count each tile once. Ignore face-down tiles (plain backs with no dividing line), tiles in other players' areas far in the background, and anything that is not a domino. Skip a tile cut off by the photo edge if one of its ends cannot be seen.
+For each tile also give its bounding box as fractions of the image width and height (0 to 1, from the top-left corner): box = [left, top, right, bottom]. The page draws these boxes on the photo.
+Reply with only JSON like {"tiles": [{"ends": [3, 12], "box": [0.20, 0.40, 0.42, 0.70]}, {"ends": [0, 7], "box": [0.50, 0.38, 0.71, 0.66]}]}.`;
 
 function openScan(pid) {
-  scanPid = pid; scanImg = null; scanFile = null; pips = []; readTiles = [];
+  scanPid = pid; scanImg = null; scanFile = null; pips = []; readTiles = []; readPos = [];
   scanMode = 'read';
   $('#scanWho').textContent = playerName(pid);
   $('#scanArea').classList.add('hidden');
@@ -243,25 +244,70 @@ function runScan() {
   $('#readFix').classList.toggle('hidden', !canRead);
   $('#readTap').classList.toggle('hidden', canRead);
   if (scanMode === 'read' && !canRead) {
-    ctx.putImageData(scanImg, 0, 0);
-    readTiles = [];
+    readTiles = []; readPos = [];
     renderRead(READER_HELP[readerState] || READER_HELP.none);
     $('#scanSave').disabled = true;
-  } else if (scanMode === 'read') { ctx.putImageData(scanImg, 0, 0); readWithClaude(); }
+  } else if (scanMode === 'read') readWithClaude();
   else { readCtl?.abort(); $('#scanSave').disabled = false; runDetect(); }
 }
 
 function renderRead(status) {
   $('#readStatus').textContent = status;
   $('#readTiles').innerHTML = readTiles.map((t, i) =>
-    `<span class="chip tile-chip">${t[0]}|${t[1]}<button data-rm="${i}" aria-label="Remove tile">✕</button></span>`).join('');
+    `<span class="chip tile-chip"><b>${i + 1}</b> ${t[0]}|${t[1]}<button data-rm="${i}" aria-label="Remove tile ${i + 1}">✕</button></span>`).join('');
+  drawRead(status === 'Reading tiles…');
   $('#scanTotal').textContent = readTiles.reduce((s, t) => s + tileValue(t), 0);
   $('#readMath').textContent = mathLine(readTiles);
 }
 $('#readTiles').addEventListener('click', e => {
   const i = e.target.dataset.rm;
-  if (i !== undefined) { readTiles.splice(+i, 1); renderRead($('#readStatus').textContent); }
+  if (i !== undefined) removeRead(+i);
 });
+function removeRead(i) {
+  readTiles.splice(i, 1); readPos.splice(i, 1);
+  renderRead($('#readStatus').textContent);
+}
+
+// Label each tile on the photo with what was read, so it can be checked at a glance.
+let labelBoxes = [];
+function drawRead(busy) {
+  if (!scanImg) return;
+  ctx.putImageData(scanImg, 0, 0);
+  labelBoxes = [];
+  // ~15 CSS px on screen whatever the photo's size.
+  const fs = Math.round(Math.max(canvas.width / 22, 15 * canvas.width / Math.max(1, canvas.clientWidth)));
+  if (busy) {
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff'; ctx.font = `600 ${fs}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Reading tiles…', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+  readTiles.forEach((t, i) => {
+    const p = readPos[i];
+    if (!p) return;
+    const bx = p.l * canvas.width, by = p.t * canvas.height;
+    const bw = (p.r - p.l) * canvas.width, bh = (p.b - p.t) * canvas.height;
+    ctx.strokeStyle = '#3ad18a'; ctx.lineWidth = Math.max(2, fs / 6);
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, fs / 3); ctx.stroke();
+    // Label sits just above the tile (below if there's no room), never over its numbers.
+    const label = `${i + 1}: ${t[0]}|${t[1]}=${tileValue(t)}`;
+    ctx.font = `700 ${fs}px system-ui, sans-serif`;
+    const w = ctx.measureText(label).width + fs * 0.8, h = fs * 1.5;
+    const x = Math.min(Math.max(bx + bw / 2 - w / 2, 2), canvas.width - w - 2);
+    const hits = y => labelBoxes.some(o => x < o.x + o.w && x + w > o.x && y < o.y + o.h && y + h > o.y);
+    let y = by - h - 4;
+    while (y >= 2 && hits(y)) y -= h + 4; // stack above neighbours' labels
+    if (y < 2) { y = by + bh + 4; while (hits(y)) y += h + 4; }
+    y = Math.min(y, canvas.height - h - 2);
+    ctx.fillStyle = 'rgba(15,40,28,.9)';
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, fs / 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+    labelBoxes.push({ i, x, y, w, h });
+  });
+}
 
 const READ_ERRORS = {
   rate_limited: 'Too many reads right now. Wait a moment, then tap Read again.',
@@ -273,17 +319,22 @@ const READ_ERRORS = {
 async function readWithClaude(again = false) {
   readCtl?.abort();
   const ctl = readCtl = new AbortController();
-  readTiles = [];
+  readTiles = []; readPos = [];
   renderRead('Reading tiles…');
   $('#scanSave').disabled = true;
   try {
     const okType = sampleLimits.images.mediaTypes.includes(scanFile.type) && scanFile.size <= sampleLimits.images.maxInputBytes;
     const image = okType ? scanFile : await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
     const res = await sampleFn.json(readPrompt(), { images: [image], signal: ctl.signal, ...(again ? { cache: false } : {}) });
-    readTiles = (Array.isArray(res?.tiles) ? res.tiles : [])
-      .map(t => [Number(t?.[0]), Number(t?.[1])])
-      .filter(t => t.every(n => Number.isInteger(n) && n >= 0 && n <= 20));
-    renderRead(readTiles.length ? 'Check the tiles below. Tap ✕ to drop one, or fix / add tiles.' : 'No tiles found. Try a closer, brighter photo.');
+    const frac = v => (Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : null);
+    const items = (Array.isArray(res?.tiles) ? res.tiles : []).map(t => {
+      const ends = Array.isArray(t) ? t : t?.ends;
+      const b = Array.isArray(t?.box) ? t.box.map(frac) : [];
+      const ok = b.length === 4 && b.every(v => v !== null) && b[2] > b[0] && b[3] > b[1];
+      return { t: [Number(ends?.[0]), Number(ends?.[1])], p: ok ? { l: b[0], t: b[1], r: b[2], b: b[3] } : null };
+    }).filter(o => o.t.every(n => Number.isInteger(n) && n >= 0 && n <= 20));
+    readTiles = items.map(o => o.t); readPos = items.map(o => o.p);
+    renderRead(readTiles.length ? 'Check the labels on the photo. Tap a wrong label or ✕ to drop it, or fix / add tiles.' : 'No tiles found. Try a closer, brighter photo.');
     $('#scanSave').disabled = false;
   } catch (e) {
     if (e?.code === 'cancelled') return;
@@ -308,10 +359,14 @@ function drawScan() {
   $('#scanTotal').textContent = pips.length;
 }
 canvas.addEventListener('click', e => {
-  if (scanMode !== 'dots') return;
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) * canvas.width / rect.width;
   const y = (e.clientY - rect.top) * canvas.height / rect.height;
+  if (scanMode === 'read') {
+    const hit = labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (hit) removeRead(hit.i);
+    return;
+  }
   const tapR = Math.max(12, 14 * canvas.width / rect.width);
   const hit = pips.findIndex(p => Math.hypot(p.x - x, p.y - y) < Math.max(p.r * 1.5, tapR));
   if (hit >= 0) pips.splice(hit, 1);
