@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f3b2d">
+  <title>Domino Train Count</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🁫 Domino Train Count</h1>
+    <button id="settingsBtn" class="ghost" aria-label="Settings">⚙︎</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Players</h2>
+      <form id="addPlayer" class="row">
+        <input id="playerName" placeholder="Add player name" maxlength="20" autocomplete="off">
+        <button type="submit">Add</button>
+      </form>
+      <ul id="playerList" class="chips"></ul>
+    </section>
+
+    <section class="card" id="roundCard">
+      <div class="round-nav">
+        <button id="prevRound" class="ghost" aria-label="Previous round">◀</button>
+        <div>
+          <div id="roundTitle" class="round-title"></div>
+          <div id="roundSub" class="muted"></div>
+        </div>
+        <button id="nextRound" class="ghost" aria-label="Next round">▶</button>
+      </div>
+      <div id="roundPlayers"></div>
+    </section>
+
+    <section class="card">
+      <h2>Scoreboard <span class="muted small">lowest wins</span></h2>
+      <div class="table-wrap"><table id="board"></table></div>
+    </section>
+  </main>
+
+  <!-- Scan dialog -->
+  <dialog id="scanDlg">
+    <div class="dlg-head">
+      <h3>Scan tiles · <span id="scanWho"></span></h3>
+      <button class="ghost close" data-close>✕</button>
+    </div>
+    <div class="row">
+      <label class="btn">📷 Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="btn ghost">🖼 Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
+    </div>
+    <div id="scanArea" class="scan-area hidden">
+      <canvas id="scanCanvas"></canvas>
+      <p class="muted small">Tap a red dot to remove it · tap a missed pip to add it.</p>
+      <div class="row">
+        <label class="grow">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+        <label class="check"><input id="darkTiles" type="checkbox"> Dark tiles</label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <div class="big">Total: <b id="scanTotal">0</b></div>
+      <button id="scanSave" disabled>Use score</button>
+    </div>
+  </dialog>
+
+  <!-- Tile picker dialog -->
+  <dialog id="tileDlg">
+    <div class="dlg-head">
+      <h3>Tap tiles · <span id="tileWho"></span></h3>
+      <button class="ghost close" data-close>✕</button>
+    </div>
+    <p class="muted small">Pick both halves of each tile left in hand.</p>
+    <div id="halfGrid" class="half-grid"></div>
+    <div id="pickedTiles" class="chips"></div>
+    <div class="dlg-foot">
+      <div class="big">Total: <b id="tileTotal">0</b></div>
+      <button id="tileSave">Use score</button>
+    </div>
+  </dialog>
+
+  <!-- Settings dialog -->
+  <dialog id="settingsDlg">
+    <div class="dlg-head">
+      <h3>Game settings</h3>
+      <button class="ghost close" data-close>✕</button>
+    </div>
+    <label class="field">Domino set
+      <select id="setSize">
+        <option value="6">Double-6</option>
+        <option value="9">Double-9</option>
+        <option value="12">Double-12</option>
+        <option value="15">Double-15</option>
+      </select>
+    </label>
+    <label class="check"><input id="blank50" type="checkbox"> Double-blank counts 50</label>
+    <p class="muted small">Changing the set starts new rounds (players stay).</p>
+    <div class="dlg-foot">
+      <button id="newGame" class="danger">New game</button>
+      <button data-close>Done</button>
+    </div>
+  </dialog>
+
+  <script src="scan.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
