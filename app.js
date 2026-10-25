@@ -51,11 +51,12 @@ function render() {
   $('#nextRound').disabled = r === roundCount() - 1;
 
   $('#roundPlayers').innerHTML = state.players.length ? state.players.map(p => `
-    <div class="player-row">
+    <div class="player-row" data-pid="${p.id}">
+      <button class="handle" data-handle aria-label="Drag to reorder ${esc(p.name)}">⠿</button>
       <div><div class="name">${esc(p.name)}</div><div class="muted small">Total ${total(p.id)}</div></div>
       <div class="actions">
         <button data-scan="${p.id}" title="Scan with camera">📷</button>
-        <button class="ghost" data-tiles="${p.id}" title="Tap tiles">🁣</button>
+        <button class="ghost" data-tiles="${p.id}" title="Tap tiles">Tiles</button>
         <input type="number" inputmode="numeric" min="0" data-score="${p.id}" value="${score(p.id, r) ?? ''}" placeholder="–">
       </div>
     </div>`).join('') : '<p class="muted">Add players to start.</p>';
@@ -115,6 +116,34 @@ $('#roundPlayers').addEventListener('click', e => {
   if (b?.dataset.scan) openScan(b.dataset.scan);
   if (b?.dataset.tiles) openTiles(b.dataset.tiles);
 });
+// Drag a row's ⠿ handle up or down to change seating order.
+let drag = null;
+$('#roundPlayers').addEventListener('pointerdown', e => {
+  const h = e.target.closest('[data-handle]');
+  if (!h) return;
+  e.preventDefault();
+  const row = h.closest('.player-row');
+  h.setPointerCapture(e.pointerId);
+  drag = { row, handle: h, startY: e.clientY };
+  row.classList.add('dragging');
+});
+$('#roundPlayers').addEventListener('pointermove', e => {
+  if (!drag) return;
+  const rows = [...$('#roundPlayers').querySelectorAll('.player-row')];
+  const before = rows.find(r => r !== drag.row && e.clientY < r.getBoundingClientRect().top + r.offsetHeight / 2);
+  if (before) { if (before !== drag.row.nextElementSibling) before.before(drag.row); }
+  else if (rows[rows.length - 1] !== drag.row) rows[rows.length - 1].after(drag.row);
+});
+const endDrag = () => {
+  if (!drag) return;
+  drag.row.classList.remove('dragging');
+  const order = [...$('#roundPlayers').querySelectorAll('.player-row')].map(r => r.dataset.pid);
+  state.players.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  drag = null;
+  save();
+};
+$('#roundPlayers').addEventListener('pointerup', endDrag);
+$('#roundPlayers').addEventListener('pointercancel', endDrag);
 const playerName = id => state.players.find(p => p.id === id).name;
 
 // ---------- dialogs ----------

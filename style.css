@@ -79,12 +79,18 @@ header .ghost { border: 0; }
 .round-nav { display: flex; align-items: center; justify-content: space-between; text-align: center; margin-bottom: 10px; }
 .round-title { font-weight: 700; font-size: 1.1rem; }
 .player-row {
-  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
-  padding: 10px 0; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--line); background: var(--card);
 }
+.handle {
+  padding: 10px 6px; background: transparent; color: var(--muted); font-size: 1.2rem;
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.player-row.dragging { position: relative; z-index: 2; box-shadow: 0 6px 18px rgb(0 0 0 / .25); border-radius: 10px; }
 .player-row .name { font-weight: 600; }
 .player-row .actions { display: flex; gap: 6px; align-items: center; }
 .player-row .actions button { padding: 8px 10px; }
+.player-row .actions button.ghost { font-size: .85rem; }
 .player-row input { width: 72px; text-align: center; font-weight: 700; }
 
 .table-wrap { overflow-x: auto; }
