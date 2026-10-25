@@ -1,8 +1,10 @@
 const $ = s => document.querySelector(s);
 const KEY = 'domino-train-count';
 
-const defaultState = () => ({ players: [], set: 15, rounds: 15, blank50: false, current: 0, scores: {} });
+const defaultState = () => ({ players: [], set: 15, rounds: 16, blank50: false, current: 0, scores: {} });
 let state = load();
+// Rounds run from the set's top double down to double-blank (15…0 = 16 rounds).
+if (!state.v2) { if (state.set === 15 && state.rounds === 15) state.rounds = 16; state.v2 = 1; }
 
 function load() {
   try { return { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY)) }; }
@@ -113,7 +115,11 @@ $('#settingsBtn').onclick = () => {
   $('#blank50').checked = state.blank50;
   $('#settingsDlg').showModal();
 };
-$('#setSize').onchange = e => { state.set = +e.target.value; save(); };
+$('#setSize').onchange = e => {
+  state.set = +e.target.value; state.rounds = state.set + 1;
+  state.current = Math.min(state.current, state.rounds - 1);
+  $('#roundsIn').value = state.rounds; save();
+};
 $('#roundsIn').onchange = e => {
   state.rounds = Math.min(30, Math.max(1, Math.round(+e.target.value) || 15));
   e.target.value = state.rounds;
