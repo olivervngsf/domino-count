@@ -3,56 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f3b2d">
+  <meta name="theme-color" content="#f2f2f7">
   <title>Domino Train Count</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>🁫 Domino Train Count</h1>
-    <button id="settingsBtn" class="ghost" aria-label="Settings">⚙︎</button>
+  <header class="nav">
+    <div class="nav-inner">
+      <span class="nav-title" id="navTitle">Domino Train</span>
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg></button>
+    </div>
   </header>
 
   <main>
-    <section class="card">
-      <div class="card-head">
+    <div class="large-title">
+      <h1>Domino Train</h1>
+      <p id="gameSub" class="muted"></p>
+    </div>
+
+    <section>
+      <div class="section-head">
         <h2>Players</h2>
-        <button id="reorderBtn" class="ghost small-btn" type="button">Reorder</button>
+        <button id="reorderBtn" class="text-btn" type="button">Reorder</button>
       </div>
-      <form id="addPlayer" class="row">
-        <input id="playerName" placeholder="Add player name" maxlength="20" autocomplete="off">
-        <button type="submit">Add</button>
-      </form>
-      <ul id="playerList" class="chips"></ul>
+      <div class="card">
+        <form id="addPlayer" class="add-row">
+          <input id="playerName" placeholder="Add player" maxlength="20" autocomplete="off" aria-label="Player name">
+          <button type="submit" class="tinted">Add</button>
+        </form>
+        <ul id="playerList" class="chips"></ul>
+      </div>
     </section>
 
-    <section class="card" id="roundCard">
-      <div class="round-nav">
-        <button id="prevRound" class="ghost" aria-label="Previous round">◀</button>
-        <div>
-          <div id="roundTitle" class="round-title"></div>
-          <div id="roundSub" class="muted"></div>
+    <section id="roundCard">
+      <div class="section-head"><h2>This round</h2></div>
+      <div class="card">
+        <div class="round-nav">
+          <button id="prevRound" class="icon-btn round-btn" aria-label="Previous round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <div>
+            <div id="roundTitle" class="round-title"></div>
+            <div id="roundSub" class="muted small"></div>
+          </div>
+          <button id="nextRound" class="icon-btn round-btn" aria-label="Next round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
         </div>
-        <button id="nextRound" class="ghost" aria-label="Next round">▶</button>
+        <div id="roundPlayers"></div>
       </div>
-      <div id="roundPlayers"></div>
     </section>
 
-    <section class="card">
-      <h2>Scoreboard <span class="muted small">lowest wins</span></h2>
-      <div class="table-wrap"><table id="board"></table></div>
+    <section id="boardSection">
+      <div class="section-head">
+        <h2>Scoreboard</h2>
+        <span class="muted small">Lowest wins</span>
+      </div>
+      <div class="seg board-seg" role="tablist">
+        <button id="viewStand" type="button" role="tab">Standings</button>
+        <button id="viewGrid" type="button" role="tab">Rounds</button>
+      </div>
+      <div class="card list-card" id="standings"></div>
+      <div class="card grid-card hidden" id="gridCard">
+        <div class="table-wrap"><table id="board"></table></div>
+      </div>
+      <p class="footnote" id="boardHint"></p>
     </section>
   </main>
 
   <!-- Scan dialog -->
-  <dialog id="scanDlg">
+  <dialog id="scanDlg" class="sheet">
+    <div class="sheet-grab"></div>
     <div class="dlg-head">
       <h3>Scan tiles · <span id="scanWho"></span></h3>
-      <button class="ghost close" data-close>✕</button>
+      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="row">
-      <label class="btn">📷 Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
-      <label class="btn ghost">🖼 Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
+      <label class="btn">Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="btn tinted">Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
     </div>
     <div id="scanArea" class="scan-area hidden">
       <canvas id="scanCanvas"></canvas>
@@ -85,10 +109,11 @@
   </dialog>
 
   <!-- Tile picker dialog -->
-  <dialog id="tileDlg">
+  <dialog id="tileDlg" class="sheet">
+    <div class="sheet-grab"></div>
     <div class="dlg-head">
       <h3>Tap tiles · <span id="tileWho"></span></h3>
-      <button class="ghost close" data-close>✕</button>
+      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <p class="muted small">Pick both halves of each tile left in hand.</p>
     <div id="halfGrid" class="half-grid"></div>
@@ -101,10 +126,11 @@
   </dialog>
 
   <!-- Settings dialog -->
-  <dialog id="settingsDlg">
+  <dialog id="settingsDlg" class="sheet">
+    <div class="sheet-grab"></div>
     <div class="dlg-head">
       <h3>Game settings</h3>
-      <button class="ghost close" data-close>✕</button>
+      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <label class="field">Domino set
       <select id="setSize">
@@ -123,16 +149,17 @@
     <div id="exGrid" class="ex-grid"></div>
     <button id="exClear" class="ghost">Forget learned tiles</button>
     <div class="dlg-foot">
-      <button id="newGame" class="danger">New game</button>
-      <button data-close>Done</button>
+      <button id="newGame" class="text-btn danger-text">New game</button>
+      <button data-close class="strong-btn">Done</button>
     </div>
   </dialog>
 
   <!-- Fix one read tile -->
-  <dialog id="fixDlg">
+  <dialog id="fixDlg" class="sheet">
+    <div class="sheet-grab"></div>
     <div class="dlg-head">
       <h3>Correct this tile</h3>
-      <button class="ghost close" data-close>✕</button>
+      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="row fix-row">
       <select id="fixA" aria-label="First end"></select>
@@ -145,12 +172,47 @@
     </div>
   </dialog>
 
+  <!-- Edit one score from the scoreboard -->
+  <dialog id="cellDlg" class="sheet">
+    <div class="sheet-grab"></div>
+    <div class="dlg-head">
+      <button class="text-btn" data-close>Cancel</button>
+      <h3 id="cellTitle"></h3>
+      <button class="text-btn strong" id="cellSave">Save</button>
+    </div>
+    <p id="cellSub" class="muted small center"></p>
+    <input id="cellInput" class="big-input" type="number" inputmode="numeric" min="0" placeholder="–" aria-label="Score">
+    <div class="sheet-actions">
+      <button id="cellClear" class="text-btn danger-text">Clear score</button>
+      <button id="cellGo" class="text-btn">Go to this round</button>
+    </div>
+  </dialog>
+
+  <!-- Player detail -->
+  <dialog id="playerDlg" class="sheet">
+    <div class="sheet-grab"></div>
+    <div class="dlg-head">
+      <span></span>
+      <h3 id="pdName"></h3>
+      <button class="text-btn strong" data-close>Done</button>
+    </div>
+    <div class="pd-hero">
+      <div id="pdAvatar" class="avatar xl"></div>
+      <div id="pdRank" class="muted small"></div>
+    </div>
+    <div class="stat-row" id="pdStats"></div>
+    <div class="card inset">
+      <div class="chart-head"><span>Points by round</span><span class="muted small">Tap a bar to edit</span></div>
+      <div class="bars" id="pdBars"></div>
+    </div>
+  </dialog>
+
   <!-- Confirm dialog -->
-  <dialog id="askDlg">
+  <dialog id="askDlg" class="alert">
     <p id="askMsg"></p>
     <div class="dlg-foot">
-      <button class="ghost" id="askNo">Cancel</button>
-      <button class="danger" id="askYes">OK</button>
+      <button class="text-btn" id="askNo">Cancel</button>
+      <button class="text-btn danger-text strong" id="askYes">OK</button>
     </div>
   </dialog>
 

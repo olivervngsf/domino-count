@@ -11,7 +11,7 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
     - Anywhere else: local dot counter for pip tiles. Tap to fix misses.
   - **Tiles** button – pick both halves of each tile.
   - Type the number.
-- **Scoreboard** – per-round grid + totals, lowest total wins 👑.
+- **Scoreboard** – Standings (ranked, tap a player for stats + round chart) and Rounds (box score: tap a score to edit, tap a round to jump there). Lowest total wins.
 - Saved in the browser (localStorage). Optional "double-blank = 50".
 
 ## Run

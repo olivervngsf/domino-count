@@ -40,49 +40,174 @@ const total = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- render ----------
+const CAMERA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+// iOS system colors for player avatars, picked from the id so each player keeps theirs.
+const AVATAR_COLORS = ['#ff9500', '#007aff', '#af52de', '#ff2d55', '#32ade6', '#5856d6', '#ff3b30', '#34c759', '#a2845e', '#ffcc00'];
+// Each player gets the first color nobody else at the table has.
+function nextColor() {
+  const used = new Set(state.players.map(p => p.color));
+  const free = AVATAR_COLORS.findIndex((_, i) => !used.has(i));
+  return free >= 0 ? free : state.players.length % AVATAR_COLORS.length;
+}
+state.players.forEach(p => { if (p.color == null) p.color = nextColor(); });
+const avatar = (p, cls = '') => `<span class="avatar ${cls}" style="background:${AVATAR_COLORS[p.color ?? 0]}">${esc([...p.name][0]?.toUpperCase() || '?')}</span>`;
+const played = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r)).filter(v => v != null);
+// Standard competition ranking: ties share a rank.
+function standings() {
+  const list = state.players.map(p => ({ p, total: total(p.id), played: played(p.id).length })).sort((a, b) => a.total - b.total);
+  list.forEach((o, i) => { o.rank = i && o.total === list[i - 1].total ? list[i - 1].rank : i + 1; });
+  return list;
+}
+let boardView = state.boardView || 'stand';
+
 function render() {
   $('#playerList').innerHTML = state.players.map(p =>
     `<li class="chip">${esc(p.name)}<button data-del="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join('');
 
   const r = state.current;
+  const n = state.players.length;
+  $('#gameSub').textContent = `Double-${state.set} set · ${n} player${n === 1 ? '' : 's'} · Round ${r + 1} of ${roundCount()}`;
   $('#roundTitle').textContent = roundLabel(r);
   $('#roundSub').textContent = `Round ${r + 1} of ${roundCount()}`;
   $('#prevRound').disabled = r === 0;
   $('#nextRound').disabled = r === roundCount() - 1;
 
-  $('#roundPlayers').innerHTML = state.players.length ? state.players.map((p, i) => `
+  $('#roundPlayers').innerHTML = n ? state.players.map((p, i) => `
     <div class="player-row" data-pid="${p.id}">
       <button class="handle" data-handle aria-label="Drag to reorder ${esc(p.name)}">⠿</button>
+      ${avatar(p)}
       <div><div class="name">${esc(p.name)}</div><div class="muted small">Total ${total(p.id)}</div></div>
       ${reordering ? `<div class="actions">
         <button class="ghost" data-move="-1" data-id="${p.id}" aria-label="Move ${esc(p.name)} up" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button class="ghost" data-move="1" data-id="${p.id}" aria-label="Move ${esc(p.name)} down" ${i === state.players.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="ghost" data-move="1" data-id="${p.id}" aria-label="Move ${esc(p.name)} down" ${i === n - 1 ? 'disabled' : ''}>▼</button>
       </div>` : `<div class="actions">
-        <button data-scan="${p.id}" title="Scan with camera">📷</button>
-        <button class="ghost" data-tiles="${p.id}" title="Tap tiles">Tiles</button>
-        <input type="number" inputmode="numeric" min="0" data-score="${p.id}" value="${score(p.id, r) ?? ''}" placeholder="–">
+        <button class="tinted" data-scan="${p.id}" aria-label="Scan ${esc(p.name)}'s tiles">${CAMERA}</button>
+        <button class="ghost" data-tiles="${p.id}">Tiles</button>
+        <input type="number" inputmode="numeric" min="0" data-score="${p.id}" value="${score(p.id, r) ?? ''}" placeholder="–" aria-label="${esc(p.name)} score">
       </div>`}
     </div>`).join('') : '<p class="muted">Add players to start.</p>';
 
-  const leaderTotal = Math.min(...state.players.map(p => total(p.id)));
-  const anyScore = Object.keys(state.scores).length > 0;
-  const head = `<tr><th>Player</th>${Array.from({ length: roundCount() }, (_, i) =>
-    `<th class="${i === r ? 'cur' : ''}" title="Round ${i + 1}">${roundDouble(i) ?? '–'}</th>`).join('')}<th>Total</th></tr>`;
-  const rows = [...state.players].sort((a, b) => total(a.id) - total(b.id)).map(p => `
-    <tr class="${anyScore && total(p.id) === leaderTotal ? 'leader' : ''}">
-      <td>${esc(p.name)}</td>
-      ${Array.from({ length: roundCount() }, (_, i) => `<td class="${i === r ? 'cur' : ''}">${score(p.id, i) ?? ''}</td>`).join('')}
-      <td class="total">${total(p.id)}</td>
-    </tr>`).join('');
-  $('#board').innerHTML = head + rows;
+  renderBoard();
 }
+
+function renderBoard() {
+  const r = state.current, list = standings();
+  const anyScore = Object.keys(state.scores).length > 0;
+  $('#viewStand').classList.toggle('sel', boardView === 'stand');
+  $('#viewGrid').classList.toggle('sel', boardView === 'grid');
+  $('#standings').classList.toggle('hidden', boardView !== 'stand');
+  $('#gridCard').classList.toggle('hidden', boardView !== 'grid');
+  $('#boardHint').textContent = !list.length ? '' : boardView === 'stand'
+    ? 'Tap a player to see every round.' : 'Tap a score to edit it. Tap a round number to go to that round.';
+
+  const lead = list[0]?.total ?? 0;
+  $('#standings').innerHTML = list.length ? list.map(o => `
+    <button class="stand-row${o.rank === 1 && anyScore ? ' first' : ''}" data-player="${o.p.id}">
+      <span class="rank">${o.rank}</span>
+      ${avatar(o.p)}
+      <span class="who"><b>${esc(o.p.name)}${o.rank === 1 && anyScore ? '<span class="lead-pill">Leading</span>' : ''}</b>
+        <span>${o.played} of ${roundCount()} rounds${anyScore && o.total > lead ? ` · ${o.total - lead} behind` : ''}</span></span>
+      <span class="pts">${o.total}</span>
+      ${CHEV}
+    </button>`).join('') : '<p class="empty">Add players to see the standings.</p>';
+
+  const head = `<thead><tr><th>Player</th>${Array.from({ length: roundCount() }, (_, i) =>
+    `<th class="${i === r ? 'cur' : ''}"><button class="col-btn" data-col="${i}" aria-label="Go to ${roundLabel(i)}">${roundDouble(i) ?? i + 1}</button></th>`).join('')}<th>Total</th></tr></thead>`;
+  const rows = list.map(o => `
+    <tr class="${anyScore && o.rank === 1 ? 'leader' : ''}">
+      <td>${esc(o.p.name)}</td>
+      ${Array.from({ length: roundCount() }, (_, i) => `<td class="${i === r ? 'cur' : ''}"><button class="cell-btn" data-cell="${o.p.id}" data-r="${i}" aria-label="${esc(o.p.name)}, ${roundLabel(i)}">${score(o.p.id, i) ?? ''}</button></td>`).join('')}
+      <td>${o.total}</td>
+    </tr>`).join('');
+  $('#board').innerHTML = head + `<tbody>${rows}</tbody>`;
+  // Keep the current round's column in view.
+  const cur = $('#board th.cur');
+  if (cur && boardView === 'grid') {
+    const wrap = $('#gridCard .table-wrap');
+    const target = cur.offsetLeft - wrap.clientWidth / 2 + cur.offsetWidth / 2;
+    wrap.scrollLeft = Math.max(0, target);
+  }
+}
+
+// ---------- scoreboard interactions ----------
+const setView = v => { boardView = state.boardView = v; save(); };
+$('#viewStand').onclick = () => setView('stand');
+$('#viewGrid').onclick = () => setView('grid');
+const goRound = i => {
+  state.current = i; save();
+  $('#roundCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+$('#standings').addEventListener('click', e => {
+  const b = e.target.closest('[data-player]');
+  if (b) openPlayer(b.dataset.player);
+});
+$('#board').addEventListener('click', e => {
+  const col = e.target.closest('[data-col]');
+  if (col) return goRound(+col.dataset.col);
+  const cell = e.target.closest('[data-cell]');
+  if (cell) openCell(cell.dataset.cell, +cell.dataset.r);
+});
+
+let cellPid, cellR;
+function openCell(pid, r) {
+  cellPid = pid; cellR = r;
+  $('#cellTitle').textContent = playerName(pid);
+  $('#cellSub').textContent = `${roundLabel(r)} · Round ${r + 1}`;
+  $('#cellInput').value = score(pid, r) ?? '';
+  $('#cellDlg').showModal();
+  setTimeout(() => $('#cellInput').focus(), 50);
+}
+$('#cellSave').onclick = () => {
+  const v = $('#cellInput').value;
+  setScore(cellPid, cellR, v === '' ? '' : +v);
+  $('#cellDlg').close(); save(); refreshPlayer();
+};
+$('#cellInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#cellSave').click(); });
+$('#cellClear').onclick = () => { setScore(cellPid, cellR, ''); $('#cellDlg').close(); save(); refreshPlayer(); };
+$('#cellGo').onclick = () => { $('#cellDlg').close(); $('#playerDlg').close(); goRound(cellR); };
+
+let detailPid = null;
+function openPlayer(pid) {
+  detailPid = pid;
+  refreshPlayer();
+  $('#playerDlg').showModal();
+}
+function refreshPlayer() {
+  if (!detailPid) return;
+  const p = state.players.find(x => x.id === detailPid);
+  if (!p) return;
+  const o = standings().find(x => x.p.id === p.id);
+  const vals = played(p.id);
+  const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : '–';
+  const best = vals.length ? Math.min(...vals) : '–';
+  $('#pdName').textContent = p.name;
+  $('#pdAvatar').outerHTML = avatar(p, 'xl').replace('class="avatar', 'id="pdAvatar" class="avatar');
+  $('#pdRank').textContent = vals.length ? `Place ${o.rank} of ${state.players.length}` : 'No rounds scored yet';
+  $('#pdStats').innerHTML = [['Total', o.total], ['Place', vals.length ? o.rank : '–'], ['Average', avg], ['Best', best]]
+    .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+  const max = Math.max(1, ...vals);
+  $('#pdBars').innerHTML = Array.from({ length: roundCount() }, (_, i) => {
+    const v = score(p.id, i);
+    return `<button class="bar${v == null ? ' none' : ''}${i === state.current ? ' cur' : ''}" data-bar="${i}" aria-label="${roundLabel(i)}: ${v ?? 'no score'}">
+      <i style="height:${v == null ? 0 : Math.max(3, (v / max) * 100)}%"></i><em>${v ?? ''}</em><small>${roundDouble(i) ?? i + 1}</small></button>`;
+  }).join('');
+}
+$('#pdBars').addEventListener('click', e => {
+  const b = e.target.closest('[data-bar]');
+  if (b) openCell(detailPid, +b.dataset.bar);
+});
+$('#playerDlg').addEventListener('close', () => { detailPid = null; });
+
+// Large title fades into the nav bar on scroll, as on iOS.
+addEventListener('scroll', () => $('.nav').classList.toggle('scrolled', scrollY > 40), { passive: true });
 
 // ---------- players & rounds ----------
 $('#addPlayer').addEventListener('submit', e => {
   e.preventDefault();
   const name = $('#playerName').value.trim();
   if (!name) return;
-  state.players.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name });
+  state.players.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, color: nextColor() });
   $('#playerName').value = '';
   save();
 });
@@ -491,7 +616,7 @@ async function readWithClaude(again = false) {
       return { t: [Number(ends?.[0]), Number(ends?.[1])], p: ok ? { l: b[0], t: b[1], r: b[2], b: b[3] } : null };
     }).filter(o => o.t.every(n => Number.isInteger(n) && n >= 0 && n <= 20));
     readTiles = items.map(o => o.t); readPos = items.map(o => o.p); readFixed = items.map(() => false);
-    renderRead(readTiles.length ? 'Check the labels. Tap a wrong one to correct it — the app learns your tiles when you use the score.' : 'No tiles found. Try a closer, brighter photo.');
+    renderRead(readTiles.length ? 'Check the labels. Tap a wrong one to correct it. The app learns your tiles when you use the score.' : 'No tiles found. Try a closer, brighter photo.');
     $('#scanSave').disabled = false;
   } catch (e) {
     if (e?.code === 'cancelled') return;
