@@ -17,6 +17,7 @@ function save() {
 const roundCount = () => state.rounds;
 // Engine double for a round counts down from the set's highest double.
 const roundDouble = i => (state.set - i >= 0 ? state.set - i : null);
+const roundLabel = i => (roundDouble(i) === null ? `Round ${i + 1}` : `Double-${roundDouble(i)}`);
 const score = (pid, r) => state.scores[`${pid}:${r}`];
 const setScore = (pid, r, v) => {
   const k = `${pid}:${r}`;
@@ -31,8 +32,8 @@ function render() {
     `<li class="chip">${esc(p.name)}<button data-del="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join('');
 
   const r = state.current;
-  $('#roundTitle').textContent = `Round ${r + 1} of ${roundCount()}`;
-  $('#roundSub').textContent = roundDouble(r) === null ? '' : `Engine: double-${roundDouble(r)}`;
+  $('#roundTitle').textContent = roundLabel(r);
+  $('#roundSub').textContent = `Round ${r + 1} of ${roundCount()}`;
   $('#prevRound').disabled = r === 0;
   $('#nextRound').disabled = r === roundCount() - 1;
 
@@ -49,7 +50,7 @@ function render() {
   const leaderTotal = Math.min(...state.players.map(p => total(p.id)));
   const anyScore = Object.keys(state.scores).length > 0;
   const head = `<tr><th>Player</th>${Array.from({ length: roundCount() }, (_, i) =>
-    `<th class="${i === r ? 'cur' : ''}" title="Round ${i + 1}">${i + 1}</th>`).join('')}<th>Total</th></tr>`;
+    `<th class="${i === r ? 'cur' : ''}" title="Round ${i + 1}">${roundDouble(i) ?? '–'}</th>`).join('')}<th>Total</th></tr>`;
   const rows = [...state.players].sort((a, b) => total(a.id) - total(b.id)).map(p => `
     <tr class="${anyScore && total(p.id) === leaderTotal ? 'leader' : ''}">
       <td>${esc(p.name)}</td>
