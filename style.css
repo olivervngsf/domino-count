@@ -89,7 +89,11 @@ header .ghost { border: 0; }
 
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-th, td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th, td { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#board { font-size: .82rem; }
+/* Name and total stay put while the round columns scroll. */
+#board th:first-child, #board td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; padding-right: 8px; max-width: 6.5em; overflow: hidden; text-overflow: ellipsis; }
+#board th:last-child, #board td:last-child { position: sticky; right: 0; background: var(--card); z-index: 1; padding-left: 8px; }
 th:first-child, td:first-child { text-align: left; }
 td.cur, th.cur { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 td.total { font-weight: 800; }
