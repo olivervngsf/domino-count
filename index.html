@@ -115,9 +115,30 @@
       <input id="roundsIn" type="number" inputmode="numeric" min="1" max="30">
     </label>
     <label class="check"><input id="blank50" type="checkbox"> Double-blank counts 50</label>
+    <h3 class="sub">Learned tiles</h3>
+    <p class="muted small"><span id="exCount"></span>. Scans you confirm teach the reader how your set prints its numbers.</p>
+    <div id="exGrid" class="ex-grid"></div>
+    <button id="exClear" class="ghost">Forget learned tiles</button>
     <div class="dlg-foot">
       <button id="newGame" class="danger">New game</button>
       <button data-close>Done</button>
+    </div>
+  </dialog>
+
+  <!-- Fix one read tile -->
+  <dialog id="fixDlg">
+    <div class="dlg-head">
+      <h3>Correct this tile</h3>
+      <button class="ghost close" data-close>✕</button>
+    </div>
+    <div class="row fix-row">
+      <select id="fixA" aria-label="First end"></select>
+      <b>+</b>
+      <select id="fixB" aria-label="Second end"></select>
+    </div>
+    <div class="dlg-foot">
+      <button id="fixRemove" class="ghost">Not a tile</button>
+      <button id="fixSave">Save</button>
     </div>
   </dialog>
 
