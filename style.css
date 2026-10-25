@@ -118,4 +118,5 @@ dialog::backdrop { background: rgb(0 0 0 / .5); }
 .half-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; }
 .half-grid button { padding: 12px 0; justify-content: center; background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
 .half-grid button.sel { background: var(--accent); color: var(--accent-ink); }
+.math { margin: 8px 0 0; font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
 .tile-chip { font-variant-numeric: tabular-nums; }

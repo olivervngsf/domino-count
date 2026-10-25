@@ -129,6 +129,14 @@ $('#newGame').onclick = async () => {
 // ---------- tile picker ----------
 let tilePid, picked = [], half = null;
 const tileValue = ([a, b]) => (a === 0 && b === 0 && state.blank50 ? 50 : a + b);
+// Live working, e.g. "(1+6) + (14+5) = 7 + 19 = 26".
+function mathLine(tiles) {
+  if (!tiles.length) return '';
+  const vals = tiles.map(tileValue);
+  const total = vals.reduce((a, b) => a + b, 0);
+  const parts = tiles.map(([a, b], i) => (vals[i] === 50 && a + b === 0 ? '50' : `(${a}+${b})`));
+  return tiles.length > 1 ? `${parts.join(' + ')} = ${vals.join(' + ')} = ${total}` : `${parts[0]} = ${total}`;
+}
 function openTiles(pid, start = []) {
   tilePid = pid; picked = start.map(t => [...t]); half = null;
   $('#tileWho').textContent = playerName(pid);
@@ -142,6 +150,7 @@ function renderTiles() {
     `<span class="chip tile-chip">${t[0]}|${t[1]}<button data-rm="${i}">✕</button></span>`).join('')
     + (half !== null ? `<span class="chip tile-chip">${half}|?</span>` : '');
   $('#tileTotal').textContent = picked.reduce((s, t) => s + tileValue(t), 0);
+  $('#tileMath').textContent = mathLine(picked);
 }
 $('#halfGrid').addEventListener('click', e => {
   const n = e.target.dataset.n;
@@ -165,11 +174,19 @@ let scanPid, scanImg = null, scanFile = null, pips = [];
 let scanMode = 'dots', readTiles = [], readCtl = null, sampleFn = null, sampleLimits = null;
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
-(async () => {
+// 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
+let readerState = 'checking';
+const readerReady = (async () => {
   const s = window.claude?.use ? await window.claude.use('sample').catch(() => null) : null;
   sampleLimits = s && await s.limits().catch(() => null);
   if (sampleLimits?.images) sampleFn = s;
+  readerState = sampleFn ? 'ok' : s ? 'no-images' : 'none';
 })();
+const READER_HELP = {
+  none: 'Reading numbers works when this page is opened in Claude (claude.ai or the Claude app). Use Tap tiles for now.',
+  'no-images': 'This Claude app view cannot send photos. Open the page at claude.ai in a browser, or use Tap tiles.',
+  declined: 'Photo reading was not allowed. Reload the page and tap Allow when asked, or use Tap tiles.',
+};
 
 const readPrompt = () => `This photo shows Mexican Train dominoes left in a player's hand at the end of a round.
 Read the two ends of every tile. Ends show printed numerals (often colored, 0 to ${Math.max(state.set, 12)}) or pip dots; a blank end is 0. A line across the middle splits each tile into its two ends.
@@ -179,7 +196,7 @@ Reply with only JSON like {"tiles": [[3, 12], [0, 7]]}.`;
 
 function openScan(pid) {
   scanPid = pid; scanImg = null; scanFile = null; pips = []; readTiles = [];
-  scanMode = sampleFn ? 'read' : 'dots';
+  scanMode = 'read';
   $('#scanWho').textContent = playerName(pid);
   $('#scanArea').classList.add('hidden');
   $('#scanSave').disabled = true;
@@ -202,7 +219,7 @@ function onFile(e) {
     scanFile = file;
     URL.revokeObjectURL(img.src);
     $('#scanArea').classList.remove('hidden');
-    runScan();
+    readerReady.then(runScan);
   };
   img.src = URL.createObjectURL(file);
 }
@@ -213,16 +230,24 @@ $('#darkTiles').onchange = () => scanImg && runDetect();
 $('#modeRead').onclick = () => { scanMode = 'read'; runScan(); };
 $('#modeDots').onclick = () => { scanMode = 'dots'; runScan(); };
 $('#readAgain').onclick = () => readWithClaude(true);
+$('#readTap').onclick = () => { $('#scanDlg').close(); openTiles(scanPid); };
 $('#readFix').onclick = () => { $('#scanDlg').close(); openTiles(scanPid, readTiles); };
 
 function runScan() {
-  if (!sampleFn) scanMode = 'dots';
-  $('#modeRow').classList.toggle('hidden', !sampleFn);
   $('#modeRead').classList.toggle('sel', scanMode === 'read');
   $('#modeDots').classList.toggle('sel', scanMode === 'dots');
   $('#readBox').classList.toggle('hidden', scanMode !== 'read');
   $('#dotBox').classList.toggle('hidden', scanMode !== 'dots');
-  if (scanMode === 'read') { ctx.putImageData(scanImg, 0, 0); readWithClaude(); }
+  const canRead = readerState === 'ok';
+  $('#readAgain').classList.toggle('hidden', !canRead);
+  $('#readFix').classList.toggle('hidden', !canRead);
+  $('#readTap').classList.toggle('hidden', canRead);
+  if (scanMode === 'read' && !canRead) {
+    ctx.putImageData(scanImg, 0, 0);
+    readTiles = [];
+    renderRead(READER_HELP[readerState] || READER_HELP.none);
+    $('#scanSave').disabled = true;
+  } else if (scanMode === 'read') { ctx.putImageData(scanImg, 0, 0); readWithClaude(); }
   else { readCtl?.abort(); $('#scanSave').disabled = false; runDetect(); }
 }
 
@@ -231,6 +256,7 @@ function renderRead(status) {
   $('#readTiles').innerHTML = readTiles.map((t, i) =>
     `<span class="chip tile-chip">${t[0]}|${t[1]}<button data-rm="${i}" aria-label="Remove tile">✕</button></span>`).join('');
   $('#scanTotal').textContent = readTiles.reduce((s, t) => s + tileValue(t), 0);
+  $('#readMath').textContent = mathLine(readTiles);
 }
 $('#readTiles').addEventListener('click', e => {
   const i = e.target.dataset.rm;
@@ -262,7 +288,9 @@ async function readWithClaude(again = false) {
   } catch (e) {
     if (e?.code === 'cancelled') return;
     if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'images_unavailable'].includes(e?.code)) {
-      sampleFn = null; runScan(); return;
+      sampleFn = null;
+      readerState = ['not_granted', 'sampling_disabled'].includes(e.code) ? 'declined' : 'no-images';
+      runScan(); return;
     }
     renderRead(READ_ERRORS[e?.code] || 'Could not read the photo. Tap Read again, or count dots.');
   }
