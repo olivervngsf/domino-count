@@ -129,13 +129,12 @@ $('#newGame').onclick = async () => {
 // ---------- tile picker ----------
 let tilePid, picked = [], half = null;
 const tileValue = ([a, b]) => (a === 0 && b === 0 && state.blank50 ? 50 : a + b);
-// Live working, e.g. "(1+6) + (14+5) = 7 + 19 = 26".
+// Live working, one tile per segment: "5 + 1 | 0 + 3 = 9".
 function mathLine(tiles) {
   if (!tiles.length) return '';
-  const vals = tiles.map(tileValue);
-  const total = vals.reduce((a, b) => a + b, 0);
-  const parts = tiles.map(([a, b], i) => (vals[i] === 50 && a + b === 0 ? '50' : `(${a}+${b})`));
-  return tiles.length > 1 ? `${parts.join(' + ')} = ${vals.join(' + ')} = ${total}` : `${parts[0]} = ${total}`;
+  const total = tiles.reduce((s, t) => s + tileValue(t), 0);
+  const parts = tiles.map(t => (tileValue(t) === 50 ? '50' : `${t[0]} + ${t[1]}`));
+  return `${parts.join(' | ')} = ${total}`;
 }
 function openTiles(pid, start = []) {
   tilePid = pid; picked = start.map(t => [...t]); half = null;
@@ -147,8 +146,8 @@ function renderTiles() {
   $('#halfGrid').innerHTML = Array.from({ length: state.set + 1 }, (_, n) =>
     `<button data-n="${n}" class="${half === n ? 'sel' : ''}">${n}</button>`).join('');
   $('#pickedTiles').innerHTML = picked.map((t, i) =>
-    `<span class="chip tile-chip">${t[0]}|${t[1]}<button data-rm="${i}">✕</button></span>`).join('')
-    + (half !== null ? `<span class="chip tile-chip">${half}|?</span>` : '');
+    `<span class="chip tile-chip">${t[0]} + ${t[1]}<button data-rm="${i}">✕</button></span>`).join('')
+    + (half !== null ? `<span class="chip tile-chip">${half} + ?</span>` : '');
   $('#tileTotal').textContent = picked.reduce((s, t) => s + tileValue(t), 0);
   $('#tileMath').textContent = mathLine(picked);
 }
@@ -254,7 +253,7 @@ function runScan() {
 function renderRead(status) {
   $('#readStatus').textContent = status;
   $('#readTiles').innerHTML = readTiles.map((t, i) =>
-    `<span class="chip tile-chip"><b>${i + 1}</b> ${t[0]}|${t[1]}<button data-rm="${i}" aria-label="Remove tile ${i + 1}">✕</button></span>`).join('');
+    `<span class="chip tile-chip">${t[0]} + ${t[1]}<button data-rm="${i}" aria-label="Remove tile ${i + 1}">✕</button></span>`).join('');
   drawRead(status === 'Reading tiles…');
   $('#scanTotal').textContent = readTiles.reduce((s, t) => s + tileValue(t), 0);
   $('#readMath').textContent = mathLine(readTiles);
@@ -292,7 +291,7 @@ function drawRead(busy) {
     ctx.strokeStyle = '#3ad18a'; ctx.lineWidth = Math.max(2, fs / 6);
     ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, fs / 3); ctx.stroke();
     // Label sits just above the tile (below if there's no room), never over its numbers.
-    const label = `${i + 1}: ${t[0]}|${t[1]}=${tileValue(t)}`;
+    const label = `${t[0]} + ${t[1]}`;
     ctx.font = `700 ${fs}px system-ui, sans-serif`;
     const w = ctx.measureText(label).width + fs * 0.8, h = fs * 1.5;
     const x = Math.min(Math.max(bx + bw / 2 - w / 2, 2), canvas.width - w - 2);
