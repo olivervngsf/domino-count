@@ -67,11 +67,24 @@ $('#addPlayer').addEventListener('submit', e => {
   $('#playerName').value = '';
   save();
 });
-$('#playerList').addEventListener('click', e => {
+// In-page confirm (native confirm() is blocked in some embeds).
+function ask(msg) {
+  return new Promise(resolve => {
+    const dlg = $('#askDlg');
+    $('#askMsg').textContent = msg;
+    const done = v => { dlg.close(); resolve(v); };
+    $('#askYes').onclick = () => done(true);
+    $('#askNo').onclick = () => done(false);
+    dlg.oncancel = () => resolve(false);
+    dlg.showModal();
+  });
+}
+
+$('#playerList').addEventListener('click', async e => {
   const id = e.target.dataset.del;
   if (!id) return;
   const p = state.players.find(p => p.id === id);
-  if (!confirm(`Remove ${p.name}?`)) return;
+  if (!await ask(`Remove ${p.name}?`)) return;
   state.players = state.players.filter(p => p.id !== id);
   Object.keys(state.scores).forEach(k => k.startsWith(id + ':') && delete state.scores[k]);
   save();
@@ -97,15 +110,15 @@ $('#settingsBtn').onclick = () => {
   $('#blank50').checked = state.blank50;
   $('#settingsDlg').showModal();
 };
-$('#setSize').onchange = e => {
-  if (Object.keys(state.scores).length && !confirm('Changing the set clears all scores. Continue?')) {
+$('#setSize').onchange = async e => {
+  if (Object.keys(state.scores).length && !await ask('Changing the set clears all scores. Continue?')) {
     e.target.value = state.set; return;
   }
   state.set = +e.target.value; state.scores = {}; state.current = 0; save();
 };
 $('#blank50').onchange = e => { state.blank50 = e.target.checked; save(); };
-$('#newGame').onclick = () => {
-  if (!confirm('Start a new game? Scores reset, players stay.')) return;
+$('#newGame').onclick = async () => {
+  if (!await ask('Start a new game? Scores reset, players stay.')) return;
   state.scores = {}; state.current = 0; save(); $('#settingsDlg').close();
 };
 
