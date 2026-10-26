@@ -26,6 +26,7 @@ function load() {
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
   render();
+  if ($('#boardDlg').open) renderBoard();
 }
 
 const roundCount = () => state.rounds;
@@ -522,7 +523,7 @@ $('#tileSave').onclick = () => {
 // Two ways to read a photo: Claude reads printed numbers (when the page runs
 // inside Claude), or the local pip counter counts dots.
 let scanPid, scanR = 0, scanImg = null, scanFile = null, pips = [];
-let scanMode = 'dots', readTiles = [], readPos = [], readFixed = [], readSure = [], readOpen = -1, readBusy = false, readCtl = null, sampleFn = null, sampleLimits = null;
+let scanMode = 'dots', readTiles = [], readPos = [], readFixed = [], readSure = [], readOpen = -1, readBusy = false, readFailed = false, readCtl = null, sampleFn = null, sampleLimits = null;
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
 // 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
@@ -675,7 +676,7 @@ function scanFoot() {
   const save = $('#scanSave');
   if (scanMode === 'dots') { save.disabled = false; save.textContent = `Add ${tot} to ${name} →`; return; }
   const q = readSure.filter(s => !s).length;
-  if (readBusy || readerState !== 'ok') { save.disabled = true; save.textContent = readBusy ? 'Reading…' : 'Use score'; return; }
+  if (readBusy || readerState !== 'ok' || (readFailed && !readTiles.length)) { save.disabled = true; save.textContent = readBusy ? 'Reading…' : 'Use score'; return; }
   save.disabled = q > 0;
   save.textContent = q ? `Check ${q} more first` : `Add ${tot} to ${name} →`;
 }
@@ -762,7 +763,7 @@ const READ_ERRORS = {
 async function readWithClaude(again = false) {
   readCtl?.abort();
   const ctl = readCtl = new AbortController();
-  readTiles = []; readPos = []; readFixed = []; readSure = []; readOpen = -1; readBusy = true;
+  readTiles = []; readPos = []; readFixed = []; readSure = []; readOpen = -1; readBusy = true; readFailed = false;
   renderRead();
   try {
     const okType = sampleLimits.images.mediaTypes.includes(scanFile.type) && scanFile.size <= sampleLimits.images.maxInputBytes;
@@ -783,7 +784,7 @@ async function readWithClaude(again = false) {
     renderRead(readTiles.length ? '' : 'No tiles found. Try a closer, brighter photo.');
   } catch (e) {
     if (e?.code === 'cancelled') return;
-    readBusy = false;
+    readBusy = false; readFailed = true;
     if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'images_unavailable'].includes(e?.code)) {
       sampleFn = null;
       readerState = ['not_granted', 'sampling_disabled'].includes(e.code) ? 'declined' : 'no-images';
