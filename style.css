@@ -421,3 +421,7 @@ button.finder { width: 100%; border: none; font: inherit; }
 .harr[disabled] { opacity: .2; }
 .minihero { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .minihero > div + div { border-left: 1px solid var(--rule); }
+
+/* Opt-in line under the tile list: confirmed photos train the future on-phone reader. */
+.share-learn { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.35; color: var(--ink2); margin-top: 4px; }
+.share-learn input { margin: 2px 0 0; accent-color: var(--ink); flex-shrink: 0; }
