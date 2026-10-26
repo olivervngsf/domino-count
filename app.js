@@ -581,7 +581,7 @@ let scanMode = 'dots', readTiles = [], readPos = [], readFixed = [], readSure = 
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
 // 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
-let readerState = 'checking';
+let readerState = 'checking', learnOn = false;
 // On the hosted site there is no built-in Claude, so the same request goes to our own
 // /api/read function, which calls Claude with the site's API key. Same prompt, same answer shape.
 const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b); });
@@ -755,6 +755,7 @@ function scanFoot() {
 }
 
 function renderRead(status) {
+  $('#shareRow').classList.toggle('hidden', !(learnOn && readTiles.length && !readBusy));
   const q = readSure.filter(s => !s).length;
   $('#scanFound').textContent = readBusy ? 'Reading tiles…' : `${readTiles.length} tile${readTiles.length === 1 ? '' : 's'} found`;
   const flag = $('#readStatus');
@@ -910,8 +911,36 @@ canvas.addEventListener('click', e => {
   }
   drawScan();
 });
+// ---------- training photos ----------
+// On the hosted site, a confirmed read (photo + the ends the player checked) is saved to a
+// private store, so a small reader that runs on the phone can be trained later. Opt-out per phone.
+const SHARE_KEY = 'domino-train-share';
+const shareWanted = () => { try { return localStorage.getItem(SHARE_KEY) !== '0'; } catch { return true; } };
+$('#shareLearn').checked = shareWanted();
+$('#shareLearn').onchange = e => { try { localStorage.setItem(SHARE_KEY, e.target.checked ? '1' : '0'); } catch {} };
+readerReady.then(async () => {
+  if (sampleFn !== serverReader) return;
+  try { learnOn = !!(await (await fetch('api/learn', { cache: 'no-store' })).json())?.ok; } catch {}
+});
+function trainingPhoto() {
+  const k = Math.min(1, 1280 / Math.max(scanImg.width, scanImg.height));
+  const src = document.createElement('canvas'); src.width = scanImg.width; src.height = scanImg.height;
+  src.getContext('2d').putImageData(scanImg, 0, 0);
+  const c = document.createElement('canvas'); c.width = Math.round(scanImg.width * k); c.height = Math.round(scanImg.height * k);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+}
+function shareForTraining() {
+  if (!learnOn || !shareWanted() || !scanImg || !readTiles.length) return;
+  try {
+    const tiles = readTiles.map((t, i) => ({ ends: t, box: readPos[i] ? [readPos[i].l, readPos[i].t, readPos[i].r, readPos[i].b] : null, sure: readSure[i] !== false, fixed: !!readFixed[i] }));
+    fetch('api/learn', { method: 'POST', keepalive: false, headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ image: trainingPhoto(), tiles, set: state.set }) }).catch(() => {});
+  } catch {}
+}
+
 $('#scanSave').onclick = () => {
-  if (scanMode === 'read' && readerState === 'ok') learnFromScan();
+  if (scanMode === 'read' && readerState === 'ok') { learnFromScan(); shareForTraining(); }
   setScore(scanPid, scanR, +$('#scanTotal').textContent);
   $('#scanDlg').close(); save(); refreshPlayer();
 };
