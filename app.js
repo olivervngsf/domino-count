@@ -581,7 +581,7 @@ let scanMode = 'dots', readTiles = [], readPos = [], readFixed = [], readSure = 
 const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
 // 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
-let readerState = 'checking', learnOn = false;
+let readerState = 'checking', learnOn = false, readLocal = null, readSource = 'ai';
 // On the hosted site there is no built-in Claude, so the same request goes to our own
 // /api/read function, which calls Claude with the site's API key. Same prompt, same answer shape.
 const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b); });
@@ -616,7 +616,7 @@ const READER_HELP = {
 };
 
 const readPrompt = () => `This photo shows Mexican Train dominoes left in a player's hand at the end of a round.
-Read the two ends of every tile. Ends show printed numerals (often colored, 0 to ${Math.max(state.set, 12)}) or pip dots; a blank end is 0. A line across the middle splits each tile into its two ends.
+Read the two ends of every tile, listing ends[0] as the top half of an upright tile or the left half of a sideways tile. Ends show printed numerals (often colored, 0 to ${Math.max(state.set, 12)}) or pip dots; a blank end is 0. A line across the middle splits each tile into its two ends.
 Tiles and numerals are often rotated sideways or upside down. All numerals on one tile face the same way: find which way is up from unambiguous digits on that tile or nearby tiles (1, 2, 3, 4, 5, 7, two-digit numbers), then read 6 versus 9 with that orientation. An underline under a numeral marks its bottom.
 Count each tile once. Ignore face-down tiles (plain backs with no dividing line), tiles in other players' areas far in the background, and anything that is not a domino. Skip a tile cut off by the photo edge if one of its ends cannot be seen.
 For each tile also give its bounding box as fractions of the image width and height (0 to 1, from the top-left corner): box = [left, top, right, bottom]. The page draws these boxes on the photo.
@@ -846,7 +846,21 @@ async function readWithClaude(again = false) {
   readCtl?.abort();
   const ctl = readCtl = new AbortController();
   readTiles = []; readPos = []; readFixed = []; readSure = []; readOpen = -1; readBusy = true; readFailed = false;
+  readLocal = null; readSource = 'ai';
   renderRead();
+  // On-phone reader first (free, offline). Trusted only in "on" mode and only when it is sure of every
+  // tile; otherwise the AI reads, and the phone's answer is kept to measure how often it agrees.
+  if (!again && window.localReader && await window.localReader.ready) {
+    try { readLocal = await window.localReader.read(scanImg); } catch { readLocal = null; }
+    if (ctl.signal.aborted) return;
+    if (readLocal?.confident && window.localReader.mode === 'on') {
+      readTiles = readLocal.tiles.map(t => [...t.ends]); readPos = readLocal.tiles.map(t => ({ l: t.box[0], t: t.box[1], r: t.box[2], b: t.box[3] }));
+      readFixed = readTiles.map(() => false); readSure = readTiles.map(() => true); readOpen = -1;
+      readBusy = false; readSource = 'phone';
+      renderRead('Read on this phone ✓');
+      return;
+    }
+  }
   try {
     const okType = sampleLimits.images.mediaTypes.includes(scanFile.type) && scanFile.size <= sampleLimits.images.maxInputBytes;
     const image = okType ? scanFile : await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
@@ -935,7 +949,8 @@ function shareForTraining() {
   try {
     const tiles = readTiles.map((t, i) => ({ ends: t, box: readPos[i] ? [readPos[i].l, readPos[i].t, readPos[i].r, readPos[i].b] : null, sure: readSure[i] !== false, fixed: !!readFixed[i] }));
     fetch('api/learn', { method: 'POST', keepalive: false, headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ image: trainingPhoto(), tiles, set: state.set }) }).catch(() => {});
+      body: JSON.stringify({ image: trainingPhoto(), tiles, set: state.set, source: readSource,
+        phone: readLocal ? { tiles: readLocal.tiles.map(t => t.ends), confident: !!readLocal.confident } : null }) }).catch(() => {});
   } catch {}
 }
 

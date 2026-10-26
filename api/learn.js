@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     if (host !== req.headers.host) return fail(res, 403, 'forbidden');
   }
 
-  const { image, tiles, set } = req.body || {};
+  const { image, tiles, set, source, phone } = req.body || {};
   if (typeof image !== 'string' || !image || image.length > MAX_B64) return fail(res, 400, 'bad_image');
   if (!Array.isArray(tiles) || tiles.length < 1 || tiles.length > 40) return fail(res, 400, 'bad_request');
   const clean = [];
@@ -39,7 +39,10 @@ module.exports = async function handler(req, res) {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     await put(`train/${day}/${id}.jpg`, buf, { access: 'private', contentType: 'image/jpeg', addRandomSuffix: false });
-    await put(`train/${day}/${id}.json`, JSON.stringify({ tiles: clean, set: num(set), at: new Date().toISOString() }),
+    // What the on-phone reader said (if one is installed), to measure how often it matches the confirmed answer.
+    const ph = phone && Array.isArray(phone.tiles) && phone.tiles.length <= 40
+      ? { tiles: phone.tiles.filter(e => Array.isArray(e) && e.length === 2).map(e => e.map(Number)), confident: !!phone.confident } : null;
+    await put(`train/${day}/${id}.json`, JSON.stringify({ tiles: clean, set: num(set), source: source === 'phone' ? 'phone' : 'ai', phone: ph, at: new Date().toISOString() }),
       { access: 'private', contentType: 'application/json', addRandomSuffix: false });
   } catch {
     return fail(res, 502, 'store_error');
