@@ -40,3 +40,18 @@ Scan tips: tiles flat, good light, fill the frame, no glare. Black tiles with wh
 ```sh
 node tests/scan.test.js
 ```
+
+## Reading with less AI
+
+1. **Cheap first.** `api/read.js` asks Haiku; only photos with an unsure tile go to Sonnet.
+2. **On-phone reader.** `localreader.js` runs a small model from `model/` in the browser (free, offline).
+   With no `model/meta.json` it stays off. In `"mode": "on"` it answers when sure of every tile; otherwise the AI reads.
+3. **Learns from play.** Every confirmed read is saved (`api/learn.js`, private Blob store). To (re)train:
+   ```
+   vercel env pull                                   # gets BLOB_READ_WRITE_TOKEN
+   node tools/export-training.mjs data/raw
+   pip install ultralytics onnx onnxruntime pillow
+   python tools/train.py data/raw                    # writes model/ in "shadow" mode
+   ```
+   Ship `model/`, play a few nights, run `python tools/shadow_report.py data/raw`, and switch
+   `model/meta.json` to `"mode": "on"` when the phone's sure answers are ~99% right. Retrain now and then.
