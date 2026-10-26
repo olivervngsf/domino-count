@@ -180,7 +180,7 @@ const live = (() => {
     }
     // Scoring for someone who just sent their own: stop.
     if (L.target?.kind === 'other' && score(L.target.pid, s.play) != null && !L.outbox[`${L.target.pid}:${s.play}`]) {
-      L.notice = `${playerName(L.target.pid)} just sent their own score.`; L.target = null;
+      L.notice = `${playerName(L.target.pid)} just sent their own score.`; L.target = null; L.typed = '';
     }
     if (L.round !== s.play) {
       // New round: drop a half-done score for the old one so it can't be sent to the wrong round.
@@ -194,8 +194,9 @@ const live = (() => {
     render();
   }
   const remember = () => store.set({ role: 'guest', code: L.code, me: L.me, name: L.myName });
-  function send(pid, r, v) {
-    const play = playRound(), fix = r === play - 1 && pid === L.me;
+  // `fix` is only true from the Fix button, so a stale photo for the old round can't pass as a fix.
+  function send(pid, r, v, wantFix = false) {
+    const play = playRound(), fix = wantFix && r === play - 1 && pid === L.me;
     if (r !== play && !fix) { L.notice = `The host started round ${play + 1}. Add your score for this round.`; L.target = null; return gpaint(); }
     L.notice = '';
     v = v === '' || v == null || isNaN(v) ? '' : Math.max(0, Math.round(v));
@@ -368,7 +369,7 @@ const live = (() => {
   // Who and which round the keypad / photo is scoring right now.
   const tgt = () => {
     const t = L.target, r = playRound();
-    return t?.kind === 'fix' ? { pid: L.me, r: t.r } : t?.kind === 'other' ? { pid: t.pid, r } : { pid: L.me, r };
+    return t?.kind === 'fix' ? { pid: L.me, r: t.r, fix: true } : t?.kind === 'other' ? { pid: t.pid, r } : { pid: L.me, r };
   };
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-g]');
@@ -385,8 +386,8 @@ const live = (() => {
         if (v === 'clear') L.typed = ''; else if (v === 'del') L.typed = L.typed.slice(0, -1);
         else if (L.typed.length < 3) L.typed = (L.typed === '0' ? '' : L.typed) + v;
         break;
-      case 'out': { const t = tgt(); send(t.pid, t.r, 0); return; }
-      case 'send': if (L.typed !== '') { const t = tgt(); send(t.pid, t.r, +L.typed); } return;
+      case 'out': { const t = tgt(); send(t.pid, t.r, 0, t.fix); return; }
+      case 'send': if (L.typed !== '') { const t = tgt(); send(t.pid, t.r, +L.typed, t.fix); } return;
       case 'change': L.changing = true; L.typed = String(sentVal(L.me, r) ?? ''); L.mode = 'type'; L.flash = null; break;
       case 'photo': { const t = tgt(); keyPid = t.pid; keyR = t.r; $('#camInput').click(); return; }
       case 'fix': L.target = { kind: 'fix', r: r - 1 }; L.typed = String(sentVal(L.me, r - 1) ?? ''); L.notice = ''; L.flash = null; break;
