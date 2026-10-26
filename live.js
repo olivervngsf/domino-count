@@ -9,6 +9,7 @@ const live = (() => {
   };
   const PHONE = '<svg class="ph" viewBox="0 0 24 24" role="img" aria-label="sent from their phone"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>';
   const can = () => typeof Peer !== 'undefined';
+  const MAX = 12;
   const newCode = () => String(100 + Math.floor(Math.random() * 900));
 
   const L = {
@@ -16,7 +17,7 @@ const live = (() => {
     conns: [], peer: null, hostConn: null,
     // guest-only
     me: null, myName: '', pcode: '', perr: '', pnew: '', pnerr: '', joinName: '',
-    pending: null, typed: '', mode: 'type', changing: false, lastAt: 0,
+    pending: null, typed: '', mode: 'type', changing: false, lastAt: 0, notice: '',
   };
 
   // ---------- shared ----------
@@ -80,7 +81,7 @@ const live = (() => {
     if (!m || typeof m !== 'object') return;
     if (m.t === 'join' && typeof m.name === 'string') {
       const name = m.name.trim().slice(0, 20);
-      if (!name || state.screen === 'over' || state.players.length >= 12) return;
+      if (!name || state.screen === 'over' || state.players.length >= MAX) { sync(); return; }
       if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) { sync(); return; }
       state.players.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, color: nextColor() });
       save();
@@ -151,14 +152,25 @@ const live = (() => {
       const p = state.players.find(x => x.name.toLowerCase() === L.joinName.toLowerCase());
       if (p) { L.me = p.id; L.myName = p.name; L.joinName = ''; remember(); }
     }
+    if (!L.me && L.joinName && state.players.length >= MAX) { L.joinName = ''; L.pnerr = `The game is full (${MAX} players). Ask the host to make room.`; }
     if (L.me) L.myName = playerName(L.me) || L.myName;
     const k = L.pending && `${L.pending.pid}:${L.pending.r}`;
     if (L.pending && (L.pending.r !== s.play || String(state.scores[k] ?? '') === String(L.pending.v))) L.pending = null;
-    if (L.round !== s.play) { L.round = s.play; L.changing = false; L.typed = ''; }
+    if (L.round !== s.play) {
+      // New round: drop a half-done score for the old one so it can't be sent to the wrong round.
+      if (L.round !== undefined) {
+        const busy = [...document.querySelectorAll('#keyDlg[open], #scanDlg[open], #tileDlg[open]')];
+        busy.forEach(d => d.close());
+        if (busy.length) L.notice = `The host started round ${s.play + 1}. Add your score for this round.`;
+      }
+      L.round = s.play; L.changing = false; L.typed = '';
+    }
     render();
   }
   const remember = () => store.set({ role: 'guest', code: L.code, me: L.me, name: L.myName });
   function send(pid, r, v) {
+    if (r !== playRound()) { L.notice = `The host started round ${playRound() + 1}. Add your score for this round.`; return gpaint(); }
+    L.notice = '';
     v = v === '' || v == null || isNaN(v) ? '' : Math.max(0, Math.round(v));
     L.pending = { pid, r, v, at: Date.now() };
     L.changing = false; L.typed = '';
@@ -227,6 +239,7 @@ const live = (() => {
         + `<div class="pick">${state.players.map(p => `<button type="button" data-g="pick" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div>`
         + `<div class="newme"><span class="lbl">Not on the list?</span>`
         + (state.screen === 'over' ? '<p class="ehint">This game has ended.</p>'
+          : state.players.length >= MAX ? `<p class="ehint">The game is full (${MAX} players). Ask the host to make room.</p>`
           : `<div class="inrow"><label for="pnew" class="sr-only">Your name</label><input id="pnew" autocomplete="off" maxlength="20" placeholder="Type your name" value="${esc(L.pnew)}"><button class="btn-ink" type="button" data-g="newme">Join</button></div>`)
         + (L.pnerr ? `<p class="perr" role="alert">${esc(L.pnerr)}</p>` : '') + '</div>';
     } else if (state.screen === 'over') {
@@ -258,7 +271,7 @@ const live = (() => {
         + `</div><span class="fine">Other scores stay hidden until the next round starts.</span></div>`;
     }
     const photo = L.mode === 'photo';
-    let h = mini + `<h1 class="big g s36">Your score</h1>`
+    let h = mini + (L.notice ? `<p class="perr" role="alert">${esc(L.notice)}</p>` : '') + `<h1 class="big g s36">Your score</h1>`
       + `<div class="tabs" role="group" aria-label="How to add your score"><button type="button" data-g="mode" data-v="photo" aria-pressed="${photo}">Photo</button><button type="button" data-g="mode" data-v="type" aria-pressed="${!photo}">Type</button></div>`;
     if (photo) {
       h += `<div class="finder"><i></i><i></i><i></i><i></i><b>Lay your tiles face up</b><span>Then take one photo</span></div>`
