@@ -8,7 +8,7 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
 - **Score each player 3 ways**
   - 📷 **Scan** – snap a photo of leftover tiles.
     - Inside Claude (artifact): Claude reads printed numbers (0–15, any rotation, 6 vs 9). Fix or add tiles after.
-    - Tap a wrong label to correct it. Confirmed tiles are saved as **learned tiles** and sent with every scan as a reference sheet, so reading gets better for your set. Manage them in ⚙︎.
+    - Tap a wrong label to correct it. Confirmed tiles are saved as **learned tiles** behind the scenes and sent with every scan as a reference sheet, so reading gets better for your set.
     - Anywhere else: local dot counter for pip tiles. Tap to fix misses.
   - **Pick tiles by hand** – both halves of each tile.
   - **Type** – keypad, or **Went out · 0**.
@@ -16,6 +16,9 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
 - **Live play (free)** – guests use their own phones.
   - The players screen shows a 3-digit **join code** and **Share link**; in the game it's the **Code** chip at the top.
   - Guests open the link (or tap **Join someone else's game** and type the code), pick their name or add a new one, then type or photograph their score. It lands on the host's phone in about 0.1 s, marked with a 📱 icon.
+  - The plain link always opens on **Join the game** (type the code) **or Host a new game**. With a game under way, the orange button reads **Back to my game**. A guest's code is filled in for them, and their address keeps `?join=code` so a reload goes straight back in.
+  - When a guest picks or adds their name, the host's playing order shows **📱 Here** next to it, so the host knows who has checked in.
+  - Guests can **fix their own last round** (the host gets a notice: "Jo fixed round 01: 12 → 9") and **score for someone else** who has no phone, only for players with no score yet this round.
   - Guests see who has sent, not other people's scores. They stay on the round in play even if the host browses back to fix an old round.
   - Phones connect directly (WebRTC via PeerJS's free public broker). The host's phone holds the game and must stay open. Reloads on either side reconnect on their own.
 - Look: "Swiss Daylight" from the Domino Train prototype (Inter Tight, ivory and ink, orange accent).

@@ -20,11 +20,14 @@ function changeSet(newSet) {
 // Older saves defaulted to double-12 or 15 → 0; this game is double-15, 15 → 1.
 if (!state.v4) { if (state.set !== 15) changeSet(15); state.rounds = 15; state.current = Math.min(state.current, 14); state.v4 = 1; }
 // Saves from before the players screen existed: go straight to the game if one is under way.
+if (!Number.isInteger(state.play)) state.play = state.current;
 if (!state.v5) { state.screen = state.players.length >= 2 && Object.keys(state.scores).length ? 'game' : 'setup'; state.recent = state.recent || []; state.v5 = 1; }
 
+// A brand-new game is already in the current format, so the upgrades above must not touch it.
 function load() {
-  try { return { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY)) }; }
-  catch { return defaultState(); }
+  const fresh = () => ({ ...defaultState(), v4: 1, v5: 1 });
+  try { const saved = JSON.parse(localStorage.getItem(KEY)); return saved ? { ...defaultState(), ...saved } : fresh(); }
+  catch { return fresh(); }
 }
 // Live play (live.js): on a guest's phone `state` is a copy of the host's game, so it is never saved here.
 const isGuest = () => typeof live !== 'undefined' && live.guest;
@@ -41,13 +44,12 @@ const roundDouble = i => (state.set - i >= 0 ? state.set - i : null);
 const roundLabel = i => (roundDouble(i) === null ? `Round ${i + 1}` : `Double-${roundDouble(i)}`);
 const score = (pid, r) => state.scores[`${pid}:${r}`];
 // A guest's score goes to the host's phone. On the host, a score typed here clears the "from their phone" mark,
-// and scoring ahead moves the round guests see.
+// Guests move to the next round only when the host does (Finish round, or the › arrow after a full round).
 const setScore = (pid, r, v, fromGuest) => {
   if (isGuest()) return live.send(pid, r, v);
   const k = `${pid}:${r}`;
   if (v === '' || v == null || isNaN(v)) delete state.scores[k]; else state.scores[k] = Math.max(0, Math.round(v));
   if (!fromGuest && state.by) delete state.by[k];
-  if (state.scores[k] != null && r > (state.play ?? 0)) state.play = r;
 };
 const total = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r) || 0).reduce((a, b) => a + b, 0);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -71,14 +73,20 @@ function nextColor() {
 }
 state.players.forEach(p => { if (p.color == null) p.color = nextColor(); });
 
+// The round in play (the prototype's S.round). Rounds before it are saved and can be opened to fix.
+const latest = () => Math.max(0, Math.min(roundCount() - 1, Number.isInteger(state.play) ? state.play : state.current));
+const isPast = () => state.current < latest();
 const played = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r)).filter(v => v != null);
 // Standard competition ranking: ties share a rank.
 // While playing, rank on finished rounds only (a half-scored round would put unscored players in the lead).
-const doneTotal = pid => Array.from({ length: roundCount() }, (_, r) => (roundFull(r) ? score(pid, r) || 0 : 0)).reduce((a, b) => a + b, 0);
-const anyDone = () => Array.from({ length: roundCount() }, (_, r) => roundFull(r)).some(Boolean);
+// Totals count saved rounds only (like the prototype's history); the round in play adds once it's finished.
+const doneTotal = pid => Array.from({ length: latest() }, (_, r) => score(pid, r) || 0).reduce((a, b) => a + b, 0);
+const anyDone = () => latest() > 0;
+// Lowest total first; ties keep playing order. Places are 01, 02, 03… as in the prototype.
 function standings(all = state.screen === 'over') {
-  const list = state.players.map(p => ({ p, total: all ? total(p.id) : doneTotal(p.id), played: played(p.id).length })).sort((a, b) => a.total - b.total);
-  list.forEach((o, i) => { o.rank = i && o.total === list[i - 1].total ? list[i - 1].rank : i + 1; });
+  const list = state.players.map((p, i) => ({ p, i, total: all ? total(p.id) : doneTotal(p.id), played: played(p.id).length }))
+    .sort((a, b) => a.total - b.total || a.i - b.i);
+  list.forEach((o, i) => { o.rank = i + 1; });
   return list;
 }
 const anyScore = () => (state.screen === 'over' ? Object.keys(state.scores).length > 0 : anyDone());
@@ -86,8 +94,11 @@ const playerName = id => state.players.find(p => p.id === id)?.name || '';
 const roundFull = r => state.players.length > 0 && state.players.every(p => score(p.id, r) != null);
 const firstOpen = r => state.players.findIndex(p => score(p.id, r) == null);
 const lastScoredRound = () => Object.keys(state.scores).reduce((m, k) => Math.max(m, +k.split(':')[1]), -1);
+// Checked in on their own phone (live play).
+const here = pid => typeof live !== 'undefined' && live.here(pid);
+const PHONE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>';
 const fromPhone = (pid, r) => (typeof live !== 'undefined' ? live.phone(pid, r) : '');
-const totalBefore = (pid, r) => doneTotal(pid) - (roundFull(r) ? score(pid, r) || 0 : 0);
+const totalBefore = pid => doneTotal(pid);
 
 // ---------- render ----------
 let editPlayers = false, editGame = false, landed = null;
@@ -133,16 +144,17 @@ function renderSetup() {
   $('#orderHint').classList.toggle('hidden', !editPlayers);
   $('#playerList').innerHTML = !n ? '<p class="empty-note">No players yet. Add names above.</p>'
     : editPlayers ? editRows('setup')
-    : state.players.map((p, i) => `<div class="prow"><span class="ord">${pad(i + 1)}</span><span class="nm">${esc(p.name)}</span></div>`).join('');
+    : state.players.map((p, i) => `<div class="prow"><span class="ord">${pad(i + 1)}</span><span class="nm">${esc(p.name)}</span>${here(p.id) ? `<span class="here">${PHONE_ICON}Here</span>` : ''}</div>`).join('');
   const going = Object.keys(state.scores).length > 0;
   $('#gameSub').textContent = going ? `Domino Train · game in progress` : 'Domino Train · new game';
   $('#startGame').disabled = n < 2;
   $('#startGame').textContent = n < 2 ? 'Add at least 2 players' : going ? `Back to the game · ${n} players →` : `Start game · ${n} players →`;
 }
 
-function segs(curR) {
-  const done = Array.from({ length: roundCount() }, (_, i) => roundFull(i));
-  return Array.from({ length: roundCount() }, (_, i) => `<i class="${i === curR ? 'c' : done[i] ? 'd' : ''}"></i>`).join('');
+// Progress bar: saved rounds white, the round in play orange.
+function segs() {
+  const L = latest();
+  return Array.from({ length: roundCount() }, (_, i) => `<i class="${i === L ? 'c' : i < L ? 'd' : ''}"></i>`).join('');
 }
 
 function nextLabel(r) {
@@ -150,70 +162,82 @@ function nextLabel(r) {
   const d = roundDouble(r + 1);
   return d === null ? `Next round · Round ${r + 2} →` : `Next round · Double‑${d} →`;
 }
+function finishLabel(r) {
+  if (r >= roundCount() - 1) return 'Finish game →';
+  const d = roundDouble(r + 1);
+  return d === null ? `Finish round · next is Round ${r + 2} →` : `Finish round · next is Double‑${d} →`;
+}
 
 function renderGame() {
-  const r = state.current, n = state.players.length, R = roundCount();
-  const full = roundFull(r), open = firstOpen(r);
+  const r = state.current, n = state.players.length, R = roundCount(), past = isPast(), L = latest();
+  const full = roundFull(r), open = past ? -1 : firstOpen(r);
   const done = state.players.filter(p => score(p.id, r) != null).length;
+  const back = `Back to Round ${pad(L + 1)} →`;
 
-  // round header
+  // round header: ‹ opens saved rounds; › only steps back toward the round in play
+  $('#roundCard').classList.toggle('past', past);
+  $('#roundLbl').textContent = past ? 'Saved round' : 'Round';
   $('#roundNum').textContent = pad(r + 1);
   $('#roundOf').textContent = '/' + R;
   $('#roundTitle').textContent = roundDouble(r) ?? '—';
   $('#prevRound').disabled = r === 0;
-  $('#nextRound').disabled = r === R - 1;
+  $('#nextRound').disabled = !past;
 
   // this round (dark card)
+  $('#glanceLbl').textContent = past ? 'Fixing this round' : 'This round';
   $('#segs').innerHTML = segs(r);
-  $('#roundSub').innerHTML = `<b class="cnt">${done} of ${n}</b> scored`;
+  $('#roundSub').innerHTML = `<b class="cnt">${done} of ${n}</b> scored<span id="liveTxt"></span>`;
   $('#glanceCards').innerHTML = state.players.map((p, i) => {
     const v = score(p.id, r), has = v != null, next = i === open;
     return `<button class="rk ${has ? 'has' : 'todo'}${next ? ' next' : ''}" type="button" data-key="${p.id}" aria-label="${esc(p.name)}: ${has ? v + ' points this round. Change' : 'no score yet. Add score'}">
-      <span class="rk-l"><span class="rk-n">${esc(p.name)}${fromPhone(p.id, r)}</span><em>Total ${totalBefore(p.id, r)}</em></span>
+      <span class="rk-l"><span class="rk-n">${esc(p.name)}${past ? '' : fromPhone(p.id, r)}</span><em>Total ${totalBefore(p.id)}</em></span>
       <span class="rk-r">${has ? `<i class="ok-dot" aria-hidden="true">${ICON.check}</i><b>+${v}</b>` : ''}</span></button>`;
   }).join('');
-  $('#glanceNext').classList.toggle('hidden', !full);
-  $('#glanceNext').textContent = nextLabel(r);
+  $('#glanceNext').classList.toggle('hidden', !past && !full);
+  $('#glanceNext').classList.toggle('alt', past);
+  $('#glanceNext').textContent = past ? back : nextLabel(r);
 
-  // score this round
+  // score this round / fix a saved round
+  $('#scoreH').textContent = past ? `Fix round ${pad(r + 1)}` : 'Score this round';
   $('#editBtn').textContent = editGame ? 'Done' : 'Edit';
   $('#editBtn').setAttribute('aria-pressed', editGame);
   $('#rotateBtn').classList.toggle('hidden', !editGame);
   $('#finishRound').classList.toggle('hidden', editGame);
   $('#roundHint').textContent = editGame
     ? 'Drag ⋮⋮ to change who plays when. Tap a name to rename. Scores move with each player.'
+    : past ? 'Saved scores. Tap a score to fix it. Totals update right away.'
     : `${done} of ${n} scored · ${state.players.map(p => p.name).join(' → ')}`;
   $('#roundPlayers').innerHTML = editGame ? editRows('game') : state.players.map((p, i) => {
     const v = score(p.id, r), on = i === open;
     return `<div class="srow${on ? ' on' : ''}">
-      <button class="who" type="button" data-key="${p.id}"><span class="o">${pad(i + 1)}${on ? ' · up next' : ''}</span><span class="n">${esc(p.name)}${fromPhone(p.id, r)}</span>
-        <span class="t">${totalBefore(p.id, r)} total ${v != null ? `<b>+${v}</b>` : ''}</span></button>
+      <button class="who" type="button" data-key="${p.id}"><span class="o">${pad(i + 1)}${on ? ' · up next' : ''}${past ? ' · saved' : ''}</span><span class="n">${esc(p.name)}${past ? '' : fromPhone(p.id, r)}</span>
+        <span class="t">${totalBefore(p.id)} total ${v != null && !past ? `<b>+${v}</b>` : ''}</span></button>
       <button class="cam" type="button" data-scan="${p.id}" aria-label="Photo of ${esc(p.name)}'s tiles">${ICON.cam}</button>
       <button class="box${v == null ? ' empty' : ''}" type="button" data-key="${p.id}" aria-label="Type score for ${esc(p.name)}">${v ?? '00'}</button>
     </div>`;
   }).join('');
-  $('#finishRound').disabled = !full;
-  $('#finishRound').textContent = full ? nextLabel(r).replace('Next round', 'Finish round') : `Finish round · ${n - done} left`;
+  $('#finishRound').classList.toggle('ink', past);
+  $('#finishRound').disabled = !past && !full;
+  $('#finishRound').textContent = past ? back : full ? finishLabel(r) : `Finish round · ${n - done} left`;
 
-  // scoreboard
-  renderTable($('#board'), Math.max(r, lastScoredRound()) + 1, r, true);
+  // scoreboard: saved rounds + the round in play, lowest total on top
+  renderTable($('#board'), L + 1, r, true);
   const list = standings();
   $('#boardHint').textContent = !anyScore() || n < 2 ? `Round 1: everyone starts at 0. Lowest total after ${R} rounds wins.`
-    : list[1].total === list[0].total ? `${list[0].p.name} and ${list[1].p.name} are tied for the lead.`
     : `${list[0].p.name} leads by ${list[1].total - list[0].total}. ${list[1].p.name} is next closest.`;
 
   // floating standings
   $('#fabLead').innerHTML = anyScore() && list.length ? ` · <b>${esc(list[0].p.name)} ${list[0].total}</b>` : '';
 }
 
-// Box score: seating order (the order set with Edit); ranks in the small number. Tap a round to go there, a score to edit it.
+// Box score, lowest total on top (as in the prototype). Tap a round to open it, a score to edit it.
 function renderTable(el, cols, curR, live) {
   const list = standings(), rankOf = Object.fromEntries(list.map(o => [o.p.id, o]));
   const lead = anyScore();
   const tmpl = `minmax(96px,1fr) repeat(${cols},36px) 60px`, minw = 96 + cols * 36 + 60;
   const head = `<div class="tr th" style="grid-template-columns:${tmpl}"><span>PLAYER</span>${Array.from({ length: cols }, (_, i) =>
     `<span class="c${live && i === curR ? ' cur' : ''}">${live ? `<button class="colbtn" type="button" data-col="${i}" aria-label="Go to ${roundLabel(i)}">${roundDouble(i) ?? i + 1}</button>` : `<span>${roundDouble(i) ?? i + 1}</span>`}</span>`).join('')}<span style="text-align:right">TOTAL</span></div>`;
-  const rows = state.players.map(p => {
+  const rows = list.map(({ p }) => {
     const o = rankOf[p.id], first = lead && o.rank === 1;
     const cells = Array.from({ length: cols }, (_, i) => {
       const v = score(p.id, i);
@@ -236,13 +260,14 @@ function renderOver() {
   $('#overTitle').textContent = tied.length > 1 ? `${tied.map(o => o.p.name).join(' & ')} tie` : `${list[0]?.p.name || ''} wins`;
   $('#overList').innerHTML = list.map(o => `<div class="final"><span class="r">${pad(o.rank)}</span><span class="n">${esc(o.p.name)}</span><b${o.rank === 1 ? ' class="lead"' : ''}>${o.total}</b></div>`).join('');
   renderTable($('#overBoard'), R, -1, false);
+  $('#overHint').textContent = list.length > 1 ? `${list[0].p.name} leads by ${list[1].total - list[0].total}. ${list[1].p.name} is next closest.` : '';
 }
 
 function renderBoard() {
   const list = standings(), lead = list[0]?.total ?? 0, r = state.current, any = anyScore();
-  let last = -1; for (let i = 0; i < roundCount(); i++) if (roundFull(i)) last = i;
-  $('#boardLbl').textContent = `Round ${pad(r + 1)} of ${roundCount()} · lowest total on top`;
-  $('#boardSegs').innerHTML = segs(r);
+  const last = latest() - 1;
+  $('#boardLbl').textContent = `Round ${pad(latest() + 1)} of ${roundCount()} · lowest total on top`;
+  $('#boardSegs').innerHTML = segs(latest());
   $('#standings').innerHTML = list.length ? list.map(o => {
     const gap = !any ? 'No rounds yet' : o.rank === 1 ? 'Leading' : `+${o.total - lead} behind`;
     const ls = last >= 0 && score(o.p.id, last) != null ? ` · last ${score(o.p.id, last)}` : '';
@@ -252,12 +277,14 @@ function renderBoard() {
 }
 
 // ---------- navigation ----------
-const goRound = i => { state.current = Math.max(0, Math.min(roundCount() - 1, i)); editGame = false; save(); scrollTo({ top: 0, behavior: 'smooth' }); };
+// Like the prototype: you can open any saved round, but only Finish round moves the game forward.
+const goRound = i => { state.current = Math.max(0, Math.min(latest(), i)); editGame = false; save(); scrollTo({ top: 0, behavior: 'smooth' }); };
 function advance() {
+  if (isPast()) return goRound(latest());
   const r = state.current;
   if (!roundFull(r)) return;
   if (r >= roundCount() - 1) { state.screen = 'over'; save(); scrollTo({ top: 0 }); return; }
-  state.play = Math.max(state.play ?? 0, r + 1);
+  state.play = r + 1;
   goRound(r + 1);
 }
 $('#prevRound').onclick = () => goRound(state.current - 1);
@@ -413,8 +440,8 @@ function renderKey() {
   $('#typePane').classList.toggle('hidden', photo);
   $('#keyVal').textContent = typed === '' ? '00' : typed;
   $('#keyVal').classList.toggle('empty', typed === '');
-  $('#keySave').disabled = typed === '';
-  $('#keySave').textContent = typed === '' ? 'Type the points' : `Save ${typed} for ${playerName(keyPid)} →`;
+  $('#keySave').disabled = false;
+  $('#keySave').textContent = `Save ${typed === '' ? '0' : typed} for ${playerName(keyPid)} →`;
   $('#keyRemove').classList.toggle('hidden', score(keyPid, keyR) == null);
 }
 $('#tabPhoto').onclick = () => { keyMode = 'photo'; renderKey(); };
@@ -431,7 +458,7 @@ function commitKey(v) {
   setScore(keyPid, keyR, v);
   $('#keyDlg').close(); save(); refreshPlayer();
 }
-$('#keySave').onclick = () => { if (typed !== '') commitKey(+typed); };
+$('#keySave').onclick = () => commitKey(typed === '' ? 0 : +typed);
 $('#keyOut').onclick = () => commitKey(0);
 $('#keyRemove').onclick = () => commitKey('');
 $('#keyTiles').onclick = () => { $('#keyDlg').close(); openTiles(keyPid, keyR); };
@@ -643,7 +670,7 @@ function onFile(e) {
   e.target.value = '';
   if (!file) return;
   scanPid = keyPid; scanR = keyR; pips = []; readTiles = []; readPos = []; readFixed = []; readSure = []; readOpen = -1;
-  scanMode = 'read';
+  scanMode = readerState === 'none' || readerState === 'no-images' || readerState === 'declined' ? 'dots' : 'read';
   const img = new Image();
   img.onload = () => {
     const scale = Math.min(1, 900 / Math.max(img.width, img.height));
@@ -683,10 +710,8 @@ function runScan() {
   const canRead = readerState === 'ok';
   $('#readAgain').classList.toggle('hidden', !canRead);
   $('#readAdd').classList.toggle('hidden', !canRead);
-  if (scanMode === 'read' && !canRead) {
-    readTiles = []; readPos = []; readFixed = []; readSure = []; readBusy = false;
-    renderRead(READER_HELP[readerState] || READER_HELP.none);
-  } else if (scanMode === 'read') readWithClaude();
+  if (scanMode === 'read' && !canRead) { scanMode = 'dots'; return runScan(); }
+  else if (scanMode === 'read') readWithClaude();
   else { readCtl?.abort(); readBusy = false; runDetect(); }
 }
 

@@ -14,10 +14,6 @@
 
     <!-- ===== Players (new game) ===== -->
     <section id="setupScreen" class="scr" aria-label="Players">
-      <div class="topbar">
-        <span class="brand">Domino Train</span>
-        <button id="setupSettings" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
-      </div>
       <div class="intro">
         <span class="lbl" id="gameSub">Domino Train · new game</span>
         <h1 class="big">Who’s playing?</h1>
@@ -41,9 +37,11 @@
         <div class="ic"><span>Join code</span><b id="inviteCode">···</b></div>
         <button id="inviteShare" class="ishare" type="button">Share link</button>
       </div>
-      <p class="invite-note"><span id="inviteNote"></span><button id="joinOther" class="linkbtn" type="button">Join someone else’s game</button></p>
+      <p class="invite-note"><span id="inviteNote" class="hidden"></span><button id="setupSettings" class="linkbtn mute" type="button">Game settings</button><button id="joinOther" class="linkbtn" type="button">Join a game instead</button></p>
       <button id="startGame" class="cta dock">Add at least 2 players</button>
     </section>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
     <!-- ===== Guest phone (live play) — drawn by live.js ===== -->
     <section id="guestScreen" class="scr guest hidden" aria-label="Join a game" aria-live="polite"></section>
@@ -54,7 +52,7 @@
         <button id="endBtn" class="round-btn" aria-label="Back to players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         <span class="brand">Domino Train</span>
         <span class="topbar-r"><button id="codeChip" class="codechip hidden" type="button"></button>
-        <button id="settingsBtn" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span>
+        <button id="settingsBtn" class="round-btn hidden" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span>
       </div>
 
       <div id="roundCard" class="hero2">
@@ -72,7 +70,7 @@
       </section>
 
       <div class="block">
-        <div class="sec-h tight"><h2 id="scoreHead">Score this round</h2><button id="editBtn" class="edit-link" type="button" aria-pressed="false">Edit</button></div>
+        <div class="sec-h tight"><h2 id="scoreH">Score this round</h2><button id="editBtn" class="edit-link" type="button" aria-pressed="false">Edit</button></div>
         <p id="roundHint" class="ehint"></p>
         <div id="roundPlayers"></div>
         <button id="rotateBtn" class="btn-line hidden" type="button">Next player starts · rotate</button>
@@ -94,9 +92,10 @@
       <div class="block">
         <div class="sec-h"><h2>Every round</h2><span>Scroll sideways</span></div>
         <div class="tbl-wrap"><div id="overBoard"></div></div>
+        <p class="tip" id="overHint"></p>
       </div>
       <div class="over-actions">
-        <button id="backToGame" class="btn-line" type="button">Back to the game</button>
+        <button id="backToGame" class="btn-line hidden" type="button">Back to the game</button>
         <button id="overNew" class="cta ink" type="button">New game</button>
       </div>
     </section>
@@ -121,7 +120,7 @@
         <label class="btn-line as-btn">Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
         <label class="btn-ink as-btn">Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
       </div>
-      <button id="keyTiles" class="link-btn" type="button">Pick tiles by hand instead</button>
+      <button id="keyTiles" class="link-btn hidden" type="button">Pick tiles by hand instead</button>
     </div>
     <div id="typePane" class="pane">
       <div class="readout"><span class="v empty" id="keyVal">00</span><button class="dash" id="keyOut" type="button">Went out · 0</button></div>
@@ -145,7 +144,7 @@
     <div class="sheet-title"><span class="lbl" id="scanWho"></span><span class="big check-title">Check the tiles</span></div>
     <div id="scanArea" class="scan-area hidden">
       <canvas id="scanCanvas"></canvas>
-      <div id="modeRow" class="tabs">
+      <div id="modeRow" class="tabs hidden">
         <button id="modeRead" type="button" aria-pressed="true">Read numbers</button>
         <button id="modeDots" type="button" aria-pressed="false">Count dots</button>
       </div>
@@ -156,8 +155,8 @@
       <div id="readBox">
         <div id="readTiles"></div>
         <button id="readAdd" class="add-miss" type="button">+ Add a missed tile</button>
-        <p id="readMath" class="math"></p>
-        <div class="row">
+        <p id="readMath" class="math hidden"></p>
+        <div class="row hidden">
           <button id="readTap" type="button" class="btn-line slim">Pick tiles by hand</button>
           <button id="readAgain" type="button" class="btn-line slim">Read again</button>
         </div>
@@ -221,7 +220,8 @@
       <input id="roundsIn" type="number" inputmode="numeric" min="1" max="30">
     </label>
     <label class="check"><input id="blank50" type="checkbox"> Double-blank counts 50</label>
-    <div class="block">
+    <!-- Learned tiles work behind the scenes: kept for app.js, not shown. -->
+    <div class="block hidden" aria-hidden="true">
       <div class="sec-h"><h2>Learned tiles</h2><span id="exCount"></span></div>
       <p class="ehint">Scans you confirm teach the reader how your set prints its numbers.</p>
       <div id="exGrid" class="ex-grid"></div>
