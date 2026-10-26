@@ -3,136 +3,204 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f2f2f7">
+  <meta name="theme-color" content="#F4F1EA">
   <title>Domino Train Count</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="nav">
-    <div class="nav-inner">
-      <span class="nav-title" id="navTitle">Domino Train</span>
-      <button id="settingsBtn" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></svg></button>
-    </div>
-  </header>
+  <div class="app">
 
-  <main>
-    <div class="large-title">
-      <h1>Domino Train</h1>
-      <p id="gameSub" class="muted"></p>
-    </div>
-
-    <section>
-      <div class="section-head">
-        <h2>Players</h2>
-        <button id="reorderBtn" class="text-btn" type="button">Reorder</button>
+    <!-- ===== Players (new game) ===== -->
+    <section id="setupScreen" class="scr" aria-label="Players">
+      <div class="topbar">
+        <span class="brand">Domino Train</span>
+        <button id="setupSettings" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
       </div>
-      <div class="card">
-        <form id="addPlayer" class="add-row">
-          <input id="playerName" placeholder="Add player" maxlength="20" autocomplete="off" aria-label="Player name">
-          <button type="submit" class="tinted">Add</button>
-        </form>
-        <ul id="playerList" class="chips"></ul>
+      <div class="intro">
+        <span class="lbl" id="gameSub">Domino Train · new game</span>
+        <h1 class="big">Who’s playing?</h1>
+        <span class="sub">Top to bottom = playing order</span>
       </div>
+      <form id="addPlayer" class="inrow">
+        <label for="playerName" class="sr-only">Player name</label>
+        <input id="playerName" placeholder="Type a name" maxlength="20" autocomplete="off">
+        <button type="submit" class="btn-ink">Add</button>
+      </form>
+      <div id="recentWrap" class="recent hidden">
+        <span class="lbl">Recent players · tap to add</span>
+        <div id="recentList" class="chips"></div>
+      </div>
+      <div class="block">
+        <div class="sec-h tight"><h2>Playing order</h2><button id="reorderBtn" class="edit-link" type="button" aria-pressed="false">Edit</button></div>
+        <p id="orderHint" class="ehint hidden">Drag ⋮⋮ to reorder. Tap a name to rename.</p>
+        <div id="playerList"></div>
+      </div>
+      <button id="startGame" class="cta dock">Add at least 2 players</button>
     </section>
 
-    <section id="roundCard">
-      <div class="section-head"><h2>This round</h2></div>
-      <div class="card">
-        <div class="round-nav">
-          <button id="prevRound" class="icon-btn round-btn" aria-label="Previous round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-          <div>
-            <div id="roundTitle" class="round-title"></div>
-            <div id="roundSub" class="muted small"></div>
-          </div>
-          <button id="nextRound" class="icon-btn round-btn" aria-label="Next round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-        </div>
+    <!-- ===== Game ===== -->
+    <section id="gameScreen" class="scr hidden" aria-label="Game">
+      <div class="topbar">
+        <button id="endBtn" class="round-btn" aria-label="Back to players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        <span class="brand">Domino Train</span>
+        <button id="settingsBtn" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+      </div>
+
+      <div id="roundCard" class="hero2">
+        <button id="prevRound" class="harr" aria-label="Previous round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="hc"><span class="lbl" id="roundLbl">Round</span><span class="hn"><span id="roundNum">01</span><small id="roundOf">/15</small></span></div>
+        <div class="hc hc2"><span class="lbl">Double</span><span class="hn acc" id="roundTitle">15</span></div>
+        <button id="nextRound" class="harr" aria-label="Next round"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <section class="glance" aria-label="This round">
+        <div class="glance-h"><span class="lbl" id="glanceLbl">This round</span><button id="fullBoardBtn" class="gfull" type="button">Full board</button></div>
+        <div class="glance-sub"><div class="segs" id="segs" aria-hidden="true"></div><span id="roundSub"></span></div>
+        <div class="ranks" id="glanceCards"></div>
+        <button id="glanceNext" class="gnext hidden" type="button"></button>
+      </section>
+
+      <div class="block">
+        <div class="sec-h tight"><h2 id="scoreHead">Score this round</h2><button id="editBtn" class="edit-link" type="button" aria-pressed="false">Edit</button></div>
+        <p id="roundHint" class="ehint"></p>
         <div id="roundPlayers"></div>
+        <button id="rotateBtn" class="btn-line hidden" type="button">Next player starts · rotate</button>
+        <button id="finishRound" class="cta" type="button" disabled></button>
+      </div>
+
+      <div id="boardSection" class="block">
+        <div class="sec-h"><h2>Scoreboard</h2><span>Lowest wins</span></div>
+        <div class="tbl-wrap" id="gridCard"><div id="board"></div></div>
+        <div class="tip" id="boardHint"></div>
       </div>
     </section>
 
-    <section id="boardSection">
-      <div class="section-head">
-        <h2>Scoreboard</h2>
-        <span class="muted small">Lowest wins</span>
+    <!-- ===== Game over ===== -->
+    <section id="overScreen" class="scr hidden" aria-label="Game over">
+      <span class="lbl" id="overLbl">Game over</span>
+      <span class="big over-title" id="overTitle"></span>
+      <div class="list" id="overList"></div>
+      <div class="block">
+        <div class="sec-h"><h2>Every round</h2><span>Scroll sideways</span></div>
+        <div class="tbl-wrap"><div id="overBoard"></div></div>
       </div>
-      <div class="seg board-seg" role="tablist">
-        <button id="viewStand" type="button" role="tab">Standings</button>
-        <button id="viewGrid" type="button" role="tab">Rounds</button>
+      <div class="over-actions">
+        <button id="backToGame" class="btn-line" type="button">Back to the game</button>
+        <button id="overNew" class="cta ink" type="button">New game</button>
       </div>
-      <div class="card list-card" id="standings"></div>
-      <div class="card grid-card hidden" id="gridCard">
-        <div class="table-wrap"><table id="board"></table></div>
-      </div>
-      <p class="footnote" id="boardHint"></p>
     </section>
-  </main>
 
-  <!-- Scan dialog -->
-  <dialog id="scanDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <h3>Scan tiles · <span id="scanWho"></span></h3>
-      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button id="fab" class="fab hidden" type="button" aria-label="Open standings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 20V11M12 20V5M18 20v-6"/></svg>Standings<span id="fabLead"></span></button>
+  </div>
+
+  <!-- Score sheet: Photo / Type -->
+  <dialog id="keyDlg" class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-top">
+      <div class="sheet-title"><span class="lbl" id="keyLbl"></span><span class="big" id="keyName"></span></div>
+      <button class="round-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <div class="row">
-      <label class="btn">Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
-      <label class="btn tinted">Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
+    <div class="tabs" role="group" aria-label="How to add a score">
+      <button id="tabPhoto" type="button" aria-pressed="false">Photo</button>
+      <button id="tabType" type="button" aria-pressed="true">Type</button>
     </div>
+    <div id="photoPane" class="pane hidden">
+      <div class="finder"><i></i><i></i><i></i><i></i><b id="finderMsg">Lay the tiles face up</b><span>You’ll check the numbers next</span></div>
+      <div class="two">
+        <label class="btn-line as-btn">Upload<input id="fileInput" type="file" accept="image/*" hidden></label>
+        <label class="btn-ink as-btn">Take photo<input id="camInput" type="file" accept="image/*" capture="environment" hidden></label>
+      </div>
+      <button id="keyTiles" class="link-btn" type="button">Pick tiles by hand instead</button>
+    </div>
+    <div id="typePane" class="pane">
+      <div class="readout"><span class="v empty" id="keyVal">00</span><button class="dash" id="keyOut" type="button">Went out · 0</button></div>
+      <div class="keys" id="keypad">
+        <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+        <button type="button" class="fn" data-k="clear">Clear</button><button type="button" data-k="0">0</button><button type="button" class="fn" data-k="del">Delete</button>
+      </div>
+      <button id="keySave" class="btn-acc" type="button" disabled>Type the points</button>
+      <button id="keyRemove" class="link-btn danger hidden" type="button">Remove this score</button>
+    </div>
+  </dialog>
+
+  <!-- Check the tiles (photo result) -->
+  <dialog id="scanDlg" class="sheet full">
+    <div class="sheet-top">
+      <button id="scanBack" class="round-btn" type="button" aria-label="Back to camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="sub">Check before saving</span>
+    </div>
+    <div class="sheet-title"><span class="lbl" id="scanWho"></span><span class="big check-title">Check the tiles</span></div>
     <div id="scanArea" class="scan-area hidden">
       <canvas id="scanCanvas"></canvas>
-      <div id="modeRow" class="seg">
-        <button id="modeRead" type="button">Read numbers</button>
-        <button id="modeDots" type="button">Count dots</button>
+      <div id="modeRow" class="tabs">
+        <button id="modeRead" type="button" aria-pressed="true">Read numbers</button>
+        <button id="modeDots" type="button" aria-pressed="false">Count dots</button>
       </div>
-      <div id="readBox" class="hidden">
-        <p id="readStatus" class="muted small"></p>
-        <div id="readTiles" class="chips"></div>
+      <div class="sumrow">
+        <div class="sum-l"><span class="found" id="scanFound">0 tiles found</span><span class="flag ok" id="readStatus"></span></div>
+        <span class="v" id="scanTotal">0</span>
+      </div>
+      <div id="readBox">
+        <div id="readTiles"></div>
+        <button id="readAdd" class="add-miss" type="button">+ Add a missed tile</button>
         <p id="readMath" class="math"></p>
         <div class="row">
-          <button id="readTap" type="button" class="ghost">Tap tiles instead</button>
-          <button id="readFix" type="button" class="ghost">Fix / add tiles</button>
-          <button id="readAgain" type="button" class="ghost">Read again</button>
+          <button id="readTap" type="button" class="btn-line slim">Pick tiles by hand</button>
+          <button id="readAgain" type="button" class="btn-line slim">Read again</button>
         </div>
       </div>
-      <div id="dotBox">
-        <p class="muted small">Tap a red dot to remove it · tap a missed pip to add it.</p>
+      <div id="dotBox" class="hidden">
+        <p class="ehint">Tap a red dot to remove it · tap a missed pip to add it.</p>
         <div class="row">
-          <label class="grow">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+          <label class="grow slider">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
           <label class="check"><input id="darkTiles" type="checkbox"> Dark tiles</label>
         </div>
       </div>
     </div>
-    <div class="dlg-foot">
-      <div class="big">Total: <b id="scanTotal">0</b></div>
-      <button id="scanSave" disabled>Use score</button>
+    <div class="two foot">
+      <button id="scanRetake" class="btn-line" type="button">Retake</button>
+      <button id="scanSave" class="btn-acc" type="button" disabled>Use score</button>
     </div>
   </dialog>
 
-  <!-- Tile picker dialog -->
+  <!-- Pick tiles by hand -->
   <dialog id="tileDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <h3>Tap tiles · <span id="tileWho"></span></h3>
-      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="grab"></div>
+    <div class="sheet-top">
+      <div class="sheet-title"><span class="lbl">Pick tiles by hand</span><span class="big" id="tileWho"></span></div>
+      <button class="round-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <p class="muted small">Pick both halves of each tile left in hand.</p>
+    <p class="ehint">Tap both halves of each tile left in hand.</p>
     <div id="halfGrid" class="half-grid"></div>
-    <div id="pickedTiles" class="chips"></div>
-    <p id="tileMath" class="math"></p>
-    <div class="dlg-foot">
-      <div class="big">Total: <b id="tileTotal">0</b></div>
-      <button id="tileSave">Use score</button>
-    </div>
+    <div id="pickedTiles" class="tchips"></div>
+    <div class="sumrow"><p id="tileMath" class="math"></p><span class="v" id="tileTotal">0</span></div>
+    <button id="tileSave" class="btn-acc" type="button">Use score</button>
   </dialog>
 
-  <!-- Settings dialog -->
-  <dialog id="settingsDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <h3>Game settings</h3>
-      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <!-- Full board -->
+  <dialog id="boardDlg" class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-top">
+      <div class="sheet-title"><span class="lbl" id="boardLbl"></span><span class="big">Full board</span></div>
+      <button class="round-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <label class="field">Domino set
+    <div class="segs-band"><div class="segs" id="boardSegs" aria-hidden="true"></div></div>
+    <div class="board-list" id="standings"></div>
+    <button class="btn-ink tall" data-close type="button">Back to scoring</button>
+  </dialog>
+
+  <!-- Game settings -->
+  <dialog id="settingsDlg" class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-top">
+      <div class="sheet-title"><span class="lbl">This game</span><span class="big">Settings</span></div>
+      <button class="round-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <label class="field"><span class="lbl">Domino set</span>
       <select id="setSize">
         <option value="6">Double-6</option>
         <option value="9">Double-9</option>
@@ -140,79 +208,42 @@
         <option value="15">Double-15</option>
       </select>
     </label>
-    <label class="field">Number of rounds
+    <label class="field"><span class="lbl">Number of rounds</span>
       <input id="roundsIn" type="number" inputmode="numeric" min="1" max="30">
     </label>
     <label class="check"><input id="blank50" type="checkbox"> Double-blank counts 50</label>
-    <h3 class="sub">Learned tiles</h3>
-    <p class="muted small"><span id="exCount"></span>. Scans you confirm teach the reader how your set prints its numbers.</p>
-    <div id="exGrid" class="ex-grid"></div>
-    <button id="exClear" class="ghost">Forget learned tiles</button>
-    <div class="dlg-foot">
-      <button id="newGame" class="text-btn danger-text">New game</button>
-      <button data-close class="strong-btn">Done</button>
+    <div class="block">
+      <div class="sec-h"><h2>Learned tiles</h2><span id="exCount"></span></div>
+      <p class="ehint">Scans you confirm teach the reader how your set prints its numbers.</p>
+      <div id="exGrid" class="ex-grid"></div>
+      <button id="exClear" class="btn-line slim" type="button">Forget learned tiles</button>
     </div>
-  </dialog>
-
-  <!-- Fix one read tile -->
-  <dialog id="fixDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <h3>Correct this tile</h3>
-      <button class="icon-btn close" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </div>
-    <div class="row fix-row">
-      <select id="fixA" aria-label="First end"></select>
-      <b>+</b>
-      <select id="fixB" aria-label="Second end"></select>
-    </div>
-    <div class="dlg-foot">
-      <button id="fixRemove" class="ghost">Not a tile</button>
-      <button id="fixSave">Save</button>
-    </div>
-  </dialog>
-
-  <!-- Edit one score from the scoreboard -->
-  <dialog id="cellDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <button class="text-btn" data-close>Cancel</button>
-      <h3 id="cellTitle"></h3>
-      <button class="text-btn strong" id="cellSave">Save</button>
-    </div>
-    <p id="cellSub" class="muted small center"></p>
-    <input id="cellInput" class="big-input" type="number" inputmode="numeric" min="0" placeholder="–" aria-label="Score">
-    <div class="sheet-actions">
-      <button id="cellClear" class="text-btn danger-text">Clear score</button>
-      <button id="cellGo" class="text-btn">Go to this round</button>
+    <div class="two">
+      <button id="newGame" class="btn-line danger" type="button">New game</button>
+      <button data-close class="btn-ink tall" type="button">Done</button>
     </div>
   </dialog>
 
   <!-- Player detail -->
   <dialog id="playerDlg" class="sheet">
-    <div class="sheet-grab"></div>
-    <div class="dlg-head">
-      <span></span>
-      <h3 id="pdName"></h3>
-      <button class="text-btn strong" data-close>Done</button>
-    </div>
-    <div class="pd-hero">
-      <div id="pdAvatar" class="avatar xl"></div>
-      <div id="pdRank" class="muted small"></div>
+    <div class="grab"></div>
+    <div class="sheet-top">
+      <div class="sheet-title"><span class="lbl" id="pdRank"></span><span class="big" id="pdName"></span></div>
+      <button class="round-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="stat-row" id="pdStats"></div>
-    <div class="card inset">
-      <div class="chart-head"><span>Points by round</span><span class="muted small">Tap a bar to edit</span></div>
+    <div class="block">
+      <div class="sec-h"><h2>Points by round</h2><span>Tap a bar to edit</span></div>
       <div class="bars" id="pdBars"></div>
     </div>
   </dialog>
 
-  <!-- Confirm dialog -->
+  <!-- Confirm -->
   <dialog id="askDlg" class="alert">
     <p id="askMsg"></p>
-    <div class="dlg-foot">
-      <button class="text-btn" id="askNo">Cancel</button>
-      <button class="text-btn danger-text strong" id="askYes">OK</button>
+    <div class="two even">
+      <button class="btn-line" id="askNo" type="button">Cancel</button>
+      <button class="btn-acc" id="askYes" type="button">OK</button>
     </div>
   </dialog>
 
