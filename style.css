@@ -394,3 +394,20 @@ dialog.alert p { margin: 0 0 18px; font-size: 17px; font-weight: 600; line-heigh
 #overHint { margin-top: 12px; }
 .scan-area canvas { max-height: 220px; }
 .linkbtn.center { align-self: center; padding: 8px 0; font-size: 15px; }
+/* This round card: Edit + Full board side by side */
+.glance-acts { display: flex; gap: 6px; }
+#glanceEdit[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--white); }
+/* Tap the viewfinder to take the photo */
+.finder.tap { cursor: pointer; }
+.finder.tap:active { transform: scale(.99); }
+/* Scoreboard: Player and Total stay put, the rounds scroll between them */
+.tbl-wrap .tr .pn, .tbl-wrap .tr.th > span:first-child { position: sticky; left: 0; z-index: 2; background: var(--paper); box-shadow: 8px 0 8px -8px rgba(17,17,17,.18); }
+.tbl-wrap .tr .tot, .tbl-wrap .tr.th > span:last-child { position: sticky; right: 0; z-index: 2; background: var(--paper); box-shadow: -8px 0 8px -8px rgba(17,17,17,.18); padding-left: 6px; }
+/* Guest round header with ‹ › */
+.hero2.g { margin-top: 2px; }
+.harr .flip { display: flex; transform: rotate(180deg); }
+button.finder { width: 100%; border: none; font: inherit; }
+.who-sent.scores b { font-size: 20px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.who-sent.scores .mine span { color: var(--accent-text); }
+/* Sticky columns need the scroll area flush with the content (no side padding to peek through). */
+#gridCard.tbl-wrap, #overScreen .tbl-wrap { margin: 0; padding: 0; }

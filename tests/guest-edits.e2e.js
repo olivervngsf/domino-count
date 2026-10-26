@@ -21,7 +21,7 @@ const URL = process.env.URL || 'http://localhost:8765/';
   await H.waitForFunction(() => state.scores[state.players.find(p => p.name === 'Mai').id + ':0'] === 7, null, { timeout: 10000 });
   console.log('Jo scored 7 for Mai; toast:', await H.textContent('#toast'));
   await G.waitForSelector('.gflash.ok', { timeout: 5000 }); console.log('guest flash:', await G.textContent('.gflash'));
-  console.log('Mai row has phone icon:', await H.$$eval('#roundPlayers .srow', rows => rows.some(r => /Mai/.test(r.textContent) && r.querySelector('.ph'))));
+  console.log('Mai row has phone icon:', await H.$$eval('#glanceCards .rk', rows => rows.some(r => /Mai/.test(r.textContent) && r.querySelector('.ph'))));
   // Kim can no longer pick Mai (already scored) — list excludes her
   await G2.click('[data-g="others"]');
   const kimList = await G2.$$eval('[data-g="other"]', e => e.map(x => x.textContent));

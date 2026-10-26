@@ -34,7 +34,7 @@ const URL = process.env.URL || 'http://localhost:8765/';
   console.log('host got Jo=12 in', Date.now() - t0, 'ms');
   await G.waitForSelector('text=Sent to the host ✓', { timeout: 10000 });
   await G.screenshot({ path: require('os').tmpdir() + '/live_guest_sent.png' });
-  console.log('phone icon on host:', await H.$$eval('#roundPlayers .ph', e => e.length));
+  console.log('phone icon on host:', await H.$$eval('#glanceCards .ph', e => e.length));
   await H.screenshot({ path: require('os').tmpdir() + '/live_host_game.png', fullPage: false });
   // G2 goes out
   await G2.click('[data-g="out"]');
@@ -44,13 +44,13 @@ const URL = process.env.URL || 'http://localhost:8765/';
   await H.waitForFunction(() => state.scores[state.players.find(p => p.name === 'Jo').id + ':0'] === 9, null, { timeout: 10000 }); console.log('change ok');
   // host types the rest, host edit clears phone mark
   await H.evaluate(() => { const id = n => state.players.find(p => p.name === n).id; setScore(id('Lan'), 0, 5); setScore(id('Mai'), 0, 7); save(); });
-  await H.click('#finishRound');
-  await G.waitForFunction(() => /Round/.test(document.querySelector('.minihero')?.textContent || '') && document.querySelector('.minihero .hn').textContent.startsWith('02'), null, { timeout: 10000 });
+  await H.click('#glanceNext');
+  await G.waitForFunction(() => /Round/.test(document.querySelector('#guestScreen .hero2')?.textContent || '') && document.querySelector('#guestScreen .hero2 .hn').textContent.startsWith('02'), null, { timeout: 10000 });
   console.log('guest moved to round 2');
   // host browses back to round 1: guests stay on round 2
   await H.click('#prevRound');
   await G.waitForTimeout(800);
-  console.log('guest round after host browsed back:', await G.textContent('.minihero .hn'));
+  console.log('guest round after host browsed back:', await G.textContent('#guestScreen .hero2 .hn'));
   // guest reload -> rejoins as same player
   await G.reload();
   await G.waitForSelector('[data-g="key"]', { timeout: 20000 });
