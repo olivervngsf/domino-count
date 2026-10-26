@@ -317,7 +317,7 @@ const live = (() => {
       + (list.length ? `<button class="gm" type="button" data-g="others"><span><em>No phone? ${list.length} still to score</em><b>Score for someone else</b></span><span class="go">→</span></button>` : '')
       + `</div>`;
   }
-  function entry({ pid, r, title, sub = '', photoOk = true, label }) {
+  function entry({ pid, r, title, sub = '', photoOk = true, label, empty = 'Type the points' }) {
     const photo = photoOk && L.mode === 'photo';
     let h = `<div class="intro"><h1 class="big g s36">${title}</h1>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
     if (photoOk) h += `<div class="tabs" role="group" aria-label="How to add the score"><button type="button" data-g="mode" data-v="photo" aria-pressed="${photo}">Photo</button><button type="button" data-g="mode" data-v="type" aria-pressed="${!photo}">Type</button></div>`;
@@ -329,7 +329,7 @@ const live = (() => {
       + `<button class="fn" type="button" data-g="key" data-v="clear">Clear</button><button type="button" data-g="key" data-v="0">0</button><button class="fn" type="button" data-g="key" data-v="del">Delete</button>`;
     return h + `<div class="readout"><span class="v${L.typed === '' ? ' empty' : ''}">${L.typed === '' ? '00' : esc(L.typed)}</span><button class="dash" type="button" data-g="out">Went out · 0</button></div>`
       + `<div class="keys">${keys}</div>`
-      + `<button class="btn-acc tall" type="button" data-g="send"${L.typed === '' ? ' disabled' : ''}>${L.typed === '' ? 'Type the points' : label(esc(L.typed))}</button>`;
+      + `<button class="btn-acc tall" type="button" data-g="send"${L.typed === '' ? ' disabled' : ''}>${L.typed === '' ? empty : label(esc(L.typed))}</button>`;
   }
   const cancel = `<button class="btn-line" type="button" data-g="cancel">Cancel</button>`;
   function scoreScreen() {
@@ -356,7 +356,7 @@ const live = (() => {
         + state.players.map(p => { const d = sentVal(p.id, r) != null; return `<div><span>${esc(p.name)}${p.id === L.me ? ' (you)' : ''}</span><span class="s ${d ? 'y' : 'n'}">${d ? 'Sent' : 'Waiting'}</span></div>`; }).join('')
         + `</div><span class="fine">Other scores stay hidden until the next round starts.</span></div>` + moreLinks(r);
     }
-    return mini(r) + notice + flashLine() + entry({ pid: L.me, r, title: 'Your score', label: v => `Send ${v} to the host →` }) + moreLinks(r);
+    return mini(r) + notice + flashLine() + entry({ pid: L.me, r, title: 'Your score', label: v => `Send ${v} to the host →`, empty: 'Type your points' }) + moreLinks(r);
   }
   function addMe() {
     const n = L.pnew.trim();
