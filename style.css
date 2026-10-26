@@ -412,3 +412,12 @@ button.finder { width: 100%; border: none; font: inherit; }
 .who-sent.scores .mine span { color: var(--accent-text); }
 /* Sticky columns need the scroll area flush with the content (no side padding to peek through). */
 #gridCard.tbl-wrap, #overScreen .tbl-wrap { margin: 0; padding: 0; }
+/* Round header: quiet arrows (no circle) and light rules, so the numbers carry it. */
+.hero2 { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.hc2 { border-left: 1px solid var(--rule); }
+.harr { border: none; background: transparent; color: var(--ink2); }
+.harr svg { width: 24px; height: 24px; }
+.harr:active { background: var(--chip); }
+.harr[disabled] { opacity: .2; }
+.minihero { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.minihero > div + div { border-left: 1px solid var(--rule); }
