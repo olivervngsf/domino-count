@@ -57,6 +57,8 @@ const URL = process.env.URL || 'http://localhost:8765/';
   console.log('guest after reload me:', await G.textContent('.me'));
   // host reload -> guests reconnect
   await H.reload();
+  console.log('host reopen shows:', await H.textContent('[data-g="host"]'));
+  await H.click('[data-g="host"]');
   await H.waitForFunction(() => /^\d{3}$/.test(document.querySelector('#codeChip').textContent.replace('Code ', '').trim()), null, { timeout: 60000 });
   console.log('host back with code', await H.textContent('#codeChip'));
   await G.click('[data-g="key"][data-v="4"]'); await G.click('[data-g="send"]');

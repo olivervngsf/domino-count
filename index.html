@@ -223,7 +223,8 @@
       <input id="roundsIn" type="number" inputmode="numeric" min="1" max="30">
     </label>
     <label class="check"><input id="blank50" type="checkbox"> Double-blank counts 50</label>
-    <div class="block">
+    <!-- Learned tiles work behind the scenes: kept for app.js, not shown. -->
+    <div class="block hidden" aria-hidden="true">
       <div class="sec-h"><h2>Learned tiles</h2><span id="exCount"></span></div>
       <p class="ehint">Scans you confirm teach the reader how your set prints its numbers.</p>
       <div id="exGrid" class="ex-grid"></div>

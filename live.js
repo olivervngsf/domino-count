@@ -152,6 +152,8 @@ const live = (() => {
         clearTimeout(L.joinTimer);
         if (L.status !== 'in') { L.status = 'in'; L.perr = ''; }
         store.set({ role: 'guest', code, me: L.me, name: L.myName });
+        // Keep the code in the address, so a reload goes straight back into this game.
+        if (new URLSearchParams(location.search).get('join') !== code) history.replaceState(null, '', location.pathname + '?join=' + code);
         flush(); gpaint();
       });
       c.on('close', () => { if (c === L.hostConn && L.status === 'in') { L.status = 'reconnecting'; gpaint(); } });
@@ -237,7 +239,8 @@ const live = (() => {
     try { L.hostConn?.close(); } catch {}
     try { L.peer?.destroy(); } catch {}
     Object.assign(L, { guest: false, peer: null, hostConn: null, me: null, myName: '', joinName: '', outbox: {}, target: null, flash: null, code: '', lastAt: 0, round: undefined });
-    store.set({});
+    // Keep this phone's host code so guests already joined stay connected; a guest's link is dropped.
+    const prev = store.get(); store.set(prev.role === 'host' ? prev : {});
     for (const d of document.querySelectorAll('dialog[open]')) d.close();
     state = load();
     history.replaceState(null, '', location.pathname);
@@ -424,8 +427,11 @@ const live = (() => {
   $('#joinOther')?.addEventListener('click', () => enterGuest(''));
 
   // ---------- start ----------
-  // A game saved on this phone (players added) means it hosts; a brand-new phone starts on Join / Host.
-  const hasOwnGame = () => { try { return (JSON.parse(localStorage.getItem(KEY))?.players || []).length > 0; } catch { return false; } };
+  // The app opens on Join / Host, unless a game is under way on this phone: then it goes straight back to it.
+  const hasOwnGame = () => {
+    try { const g = JSON.parse(localStorage.getItem(KEY)) || {}; return (g.players || []).length >= 2 && (g.screen === 'game' || g.screen === 'over'); }
+    catch { return false; }
+  };
   function boot() {
     const q = new URLSearchParams(location.search).get('join');
     const saved = store.get();
@@ -433,12 +439,13 @@ const live = (() => {
       if (saved.role === 'guest' && saved.code === q) { L.me = saved.me || null; L.myName = saved.name || ''; }
       return enterGuest(q);
     }
-    if (saved.role === 'guest' && saved.code) {
-      L.me = saved.me || null; L.myName = saved.name || '';
-      return enterGuest(saved.code);
-    }
-    if (saved.role !== 'host' && !hasOwnGame()) return enterGuest('');
-    startHost();
+    if (q && saved.role === 'host' && saved.code === q) return startHost(); // the host opened their own share link
+    // The plain link always opens on Join or Host: we don't know who is who.
+    // A guest's last code is filled in, so Join puts them back as the same player.
+    if (saved.role === 'guest' && saved.code) { L.me = saved.me || null; L.myName = saved.name || ''; }
+    enterGuest('');
+    if (saved.role === 'guest') L.pcode = saved.code || '';
+    gpaint();
   }
 
   return {

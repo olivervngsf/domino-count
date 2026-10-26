@@ -22,9 +22,11 @@ if (!state.v4) { if (state.set !== 15) changeSet(15); state.rounds = 15; state.c
 // Saves from before the players screen existed: go straight to the game if one is under way.
 if (!state.v5) { state.screen = state.players.length >= 2 && Object.keys(state.scores).length ? 'game' : 'setup'; state.recent = state.recent || []; state.v5 = 1; }
 
+// A brand-new game is already in the current format, so the upgrades above must not touch it.
 function load() {
-  try { return { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY)) }; }
-  catch { return defaultState(); }
+  const fresh = () => ({ ...defaultState(), v4: 1, v5: 1 });
+  try { const saved = JSON.parse(localStorage.getItem(KEY)); return saved ? { ...defaultState(), ...saved } : fresh(); }
+  catch { return fresh(); }
 }
 // Live play (live.js): on a guest's phone `state` is a copy of the host's game, so it is never saved here.
 const isGuest = () => typeof live !== 'undefined' && live.guest;
