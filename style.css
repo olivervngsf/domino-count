@@ -375,3 +375,15 @@ dialog.alert p { margin: 0 0 18px; font-size: 17px; font-weight: 600; line-heigh
 .who-sent span.s.y { background: var(--ink); color: var(--paper); }
 .who-sent span.s.n { background: var(--chip); color: var(--ink2); }
 .fine { font-size: 13px; color: var(--ink2); }
+.gmore { display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+.gm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border: none; border-bottom: 1px solid var(--rule); background: none; color: var(--ink); text-align: left; }
+.gm > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gm em { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); }
+.gm b { font-size: 18px; font-weight: 700; }
+.gm .go { height: 36px; min-width: 56px; padding: 0 14px; border-radius: 18px; background: var(--chip); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--accent-text); }
+.gflash { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--chip); font-size: 15px; font-weight: 600; color: var(--ink2); }
+.gflash.ok { color: var(--ink); }
+.gflash svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30; width: min(440px, calc(100% - 32px)); padding: 14px 16px; border-radius: 16px; background: var(--ink); color: var(--paper); font-size: 15px; font-weight: 600; box-shadow: 0 12px 30px rgb(0 0 0 / .25); }
+.ordiv { display: flex; align-items: center; gap: 12px; color: var(--ink2); font-size: 13px; font-weight: 600; }
+.ordiv::before, .ordiv::after { content: ""; flex: 1; height: 1px; background: var(--rule); }

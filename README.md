@@ -16,6 +16,8 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
 - **Live play (free)** – guests use their own phones.
   - The players screen shows a 3-digit **join code** and **Share link**; in the game it's the **Code** chip at the top.
   - Guests open the link (or tap **Join someone else's game** and type the code), pick their name or add a new one, then type or photograph their score. It lands on the host's phone in about 0.1 s, marked with a 📱 icon.
+  - A new phone opens on **Join the game** (type the code) **or Host a new game**. A phone with a saved game opens straight into it.
+  - Guests can **fix their own last round** (the host gets a notice: "Jo fixed round 01: 12 → 9") and **score for someone else** who has no phone, only for players with no score yet this round.
   - Guests see who has sent, not other people's scores. They stay on the round in play even if the host browses back to fix an old round.
   - Phones connect directly (WebRTC via PeerJS's free public broker). The host's phone holds the game and must stay open. Reloads on either side reconnect on their own.
 - Look: "Swiss Daylight" from the Domino Train prototype (Inter Tight, ivory and ink, orange accent).
