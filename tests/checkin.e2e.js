@@ -5,7 +5,7 @@ const URL = process.env.URL || 'http://localhost:8765/';
   const mk = async () => { const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); p.on('pageerror', e => errs.push(e.message)); return p; };
   const H = await mk(), G = await mk(), G2 = await mk();
   const tags = () => H.$$eval('#playerList .prow', rows => rows.filter(r => r.querySelector('.here')).map(r => r.querySelector('.nm').textContent));
-  await H.goto(URL); await H.click('[data-g="host"]');
+  await H.goto(URL); await H.click('[data-g="host"], [data-g="fresh"]');
   for (const n of ['Tom', 'Nanny', 'Hass']) { await H.fill('#playerName', n); await H.click('#addPlayer button'); }
   await H.waitForFunction(() => /^\d{3}$/.test(document.querySelector('#inviteCode').textContent), null, { timeout: 30000 });
   const code = await H.textContent('#inviteCode');

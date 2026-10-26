@@ -7,7 +7,7 @@ const URL = process.env.URL || 'http://localhost:8765/';
   const H = await mk('H'), G = await mk('G'), G2 = await mk('G2');
   const sc = (n, r) => H.evaluate(([n, r]) => state.scores[state.players.find(p => p.name === n).id + ':' + r], [n, r]);
   await H.goto(URL);
-  await H.click('[data-g="host"]');
+  await H.click('[data-g="host"], [data-g="fresh"]');
   for (const n of ['Lan', 'Jo', 'Mai', 'Kim']) { await H.fill('#playerName', n); await H.click('#addPlayer button'); }
   await H.waitForFunction(() => /^\d{3}$/.test(document.querySelector('#inviteCode').textContent), null, { timeout: 30000 });
   const code = await H.textContent('#inviteCode');
