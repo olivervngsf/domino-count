@@ -45,7 +45,10 @@ const roundLabel = i => (roundDouble(i) === null ? `Round ${i + 1}` : `Double-${
 const score = (pid, r) => state.scores[`${pid}:${r}`];
 // A guest's score goes to the host's phone. On the host, a score typed here clears the "from their phone" mark,
 // Guests move to the next round only when the host does (Finish round, or the › arrow after a full round).
+// A light tap on the iPhone app when a score is saved (no-op on the website).
+const buzz = () => { try { window.Capacitor?.Plugins?.Haptics?.impact?.({ style: 'LIGHT' }); } catch {} };
 const setScore = (pid, r, v, fromGuest) => {
+  if (!fromGuest && v !== '' && v != null) buzz();
   if (isGuest()) return live.send(pid, r, v);
   const k = `${pid}:${r}`;
   if (v === '' || v == null || isNaN(v)) delete state.scores[k]; else state.scores[k] = Math.max(0, Math.round(v));
@@ -584,12 +587,15 @@ const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 let readerState = 'checking', learnOn = false, readLocal = null, readSource = 'ai';
 // On the hosted site there is no built-in Claude, so the same request goes to our own
 // /api/read function, which calls Claude with the site's API key. Same prompt, same answer shape.
+// In the iPhone app the page is served from the app itself, so server calls go to the live site.
+const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+const API = NATIVE ? 'https://domino-train.vercel.app/' : '';
 const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b); });
 const serverReader = {
   async json(prompt, { images, signal }) {
     const imgs = await Promise.all(images.map(async b => ({ type: b.type || 'image/jpeg', data: await blobB64(b) })));
     let r;
-    try { r = await fetch('api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, images: imgs }), signal }); }
+    try { r = await fetch(API + 'api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, images: imgs }), signal }); }
     catch (e) { throw Object.assign(new Error('network'), { code: e?.name === 'AbortError' ? 'cancelled' : 'network' }); }
     const j = await r.json().catch(() => null);
     if (!r.ok) throw Object.assign(new Error('read failed'), { code: j?.code || 'server_error' });
@@ -603,7 +609,7 @@ const readerReady = (async () => {
   if (sampleLimits?.images) sampleFn = s;
   if (!s) {
     try {
-      const j = await (await fetch('api/read', { cache: 'no-store' })).json();
+      const j = await (await fetch(API + 'api/read', { cache: 'no-store' })).json();
       if (j?.ok) { sampleFn = serverReader; sampleLimits = SERVER_LIMITS; }
     } catch {}
   }
@@ -934,7 +940,7 @@ $('#shareLearn').checked = shareWanted();
 $('#shareLearn').onchange = e => { try { localStorage.setItem(SHARE_KEY, e.target.checked ? '1' : '0'); } catch {} };
 readerReady.then(async () => {
   if (sampleFn !== serverReader) return;
-  try { learnOn = !!(await (await fetch('api/learn', { cache: 'no-store' })).json())?.ok; } catch {}
+  try { learnOn = !!(await (await fetch(API + 'api/learn', { cache: 'no-store' })).json())?.ok; } catch {}
 });
 function trainingPhoto() {
   const k = Math.min(1, 1280 / Math.max(scanImg.width, scanImg.height));
@@ -948,7 +954,7 @@ function shareForTraining() {
   if (!learnOn || !shareWanted() || !scanImg || !readTiles.length) return;
   try {
     const tiles = readTiles.map((t, i) => ({ ends: t, box: readPos[i] ? [readPos[i].l, readPos[i].t, readPos[i].r, readPos[i].b] : null, sure: readSure[i] !== false, fixed: !!readFixed[i] }));
-    fetch('api/learn', { method: 'POST', keepalive: false, headers: { 'content-type': 'application/json' },
+    fetch(API + 'api/learn', { method: 'POST', keepalive: false, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ image: trainingPhoto(), tiles, set: state.set, source: readSource,
         phone: readLocal ? { tiles: readLocal.tiles.map(t => t.ends), confident: !!readLocal.confident } : null }) }).catch(() => {});
   } catch {}

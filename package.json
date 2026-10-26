@@ -2,6 +2,16 @@
   "name": "domino-train",
   "private": true,
   "dependencies": {
-    "@vercel/blob": "2.8.0"
+    "@vercel/blob": "2.8.0",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/haptics": "8.0.2"
+  },
+  "scripts": {
+    "build:www": "node scripts/build-www.mjs",
+    "ios": "node scripts/build-www.mjs && npx cap sync ios && npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
   }
 }
