@@ -9,6 +9,7 @@ Score keeper for Mexican Train / domino train games. Static web app, no build, w
   - 📷 **Scan** – snap a photo of leftover tiles.
     - Inside Claude (artifact): Claude reads printed numbers (0–15, any rotation, 6 vs 9). Fix or add tiles after.
     - Tap a wrong label to correct it. Confirmed tiles are saved as **learned tiles** behind the scenes and sent with every scan as a reference sheet, so reading gets better for your set.
+    - On the hosted site (Vercel): the same number reading through `api/read.js`, which calls Claude with the site's key. Set `ANTHROPIC_API_KEY` in Vercel → Project → Settings → Environment Variables, then redeploy. Without a key it falls back to counting dots.
     - Anywhere else: local dot counter for pip tiles. Tap to fix misses.
   - **Pick tiles by hand** – both halves of each tile.
   - **Type** – keypad, or **Went out · 0**.
