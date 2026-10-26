@@ -43,13 +43,12 @@ const roundDouble = i => (state.set - i >= 0 ? state.set - i : null);
 const roundLabel = i => (roundDouble(i) === null ? `Round ${i + 1}` : `Double-${roundDouble(i)}`);
 const score = (pid, r) => state.scores[`${pid}:${r}`];
 // A guest's score goes to the host's phone. On the host, a score typed here clears the "from their phone" mark,
-// and scoring ahead moves the round guests see.
+// Guests move to the next round only when the host does (Finish round, or the › arrow after a full round).
 const setScore = (pid, r, v, fromGuest) => {
   if (isGuest()) return live.send(pid, r, v);
   const k = `${pid}:${r}`;
   if (v === '' || v == null || isNaN(v)) delete state.scores[k]; else state.scores[k] = Math.max(0, Math.round(v));
   if (!fromGuest && state.by) delete state.by[k];
-  if (state.scores[k] != null && r > (state.play ?? 0)) state.play = r;
 };
 const total = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r) || 0).reduce((a, b) => a + b, 0);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -257,7 +256,7 @@ function renderBoard() {
 }
 
 // ---------- navigation ----------
-const goRound = i => { state.current = Math.max(0, Math.min(roundCount() - 1, i)); editGame = false; save(); scrollTo({ top: 0, behavior: 'smooth' }); };
+const goRound = i => { state.current = Math.max(0, Math.min(roundCount() - 1, i)); if (state.current > (state.play ?? 0) && roundFull(state.current - 1)) state.play = state.current; editGame = false; save(); scrollTo({ top: 0, behavior: 'smooth' }); };
 function advance() {
   const r = state.current;
   if (!roundFull(r)) return;

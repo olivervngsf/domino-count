@@ -23,8 +23,10 @@ const live = (() => {
   // ---------- shared ----------
   const playRound = () => {
     if (!Object.keys(state.scores).length) return 0;
+    // Never ahead of the first round that isn't fully scored: a stray score in a later round can't pull guests forward.
     const p = Number.isInteger(state.play) ? state.play : state.current;
-    return Math.max(0, Math.min(roundCount() - 1, p));
+    let open = 0; while (open < roundCount() - 1 && roundFull(open)) open++;
+    return Math.max(0, Math.min(roundCount() - 1, p, open));
   };
   function snapshot() {
     const { players, scores, set, rounds, blank50, screen, by } = state;
