@@ -1,0 +1,68 @@
+// Reads domino tiles from a photo with Claude, for the hosted site (outside Claude there is no
+// built-in reader). The page sends the same prompt and images it would give Claude's own reader;
+// this function adds the API key, which stays on the server (Vercel env var ANTHROPIC_API_KEY).
+//   GET  /api/read  -> { ok: true|false }  (is reading set up?)
+//   POST /api/read  { prompt, images: [{ type, data(base64) }] } -> the JSON Claude returned
+const MODEL = process.env.READ_MODEL || 'claude-sonnet-5-5';
+const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_B64 = 4_000_000; // ~3 MB per image after base64; Vercel caps a request at 4.5 MB
+
+const fail = (res, status, code) => res.status(status).json({ code });
+
+function firstJson(text) {
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; }
+}
+
+module.exports = async function handler(req, res) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (req.method === 'GET') return res.status(200).json({ ok: !!key });
+  if (req.method !== 'POST') return fail(res, 405, 'method_not_allowed');
+  if (!key) return fail(res, 503, 'not_configured');
+
+  // Only this site's own pages may use the key.
+  const origin = req.headers.origin;
+  if (origin) {
+    let host = '';
+    try { host = new URL(origin).host; } catch {}
+    if (host !== req.headers.host) return fail(res, 403, 'forbidden');
+  }
+
+  const { prompt, images } = req.body || {};
+  if (typeof prompt !== 'string' || !prompt || prompt.length > 8000) return fail(res, 400, 'bad_request');
+  if (!Array.isArray(images) || images.length < 1 || images.length > 2) return fail(res, 400, 'bad_request');
+  for (const im of images) {
+    if (!im || !TYPES.includes(im.type) || typeof im.data !== 'string' || !im.data || im.data.length > MAX_B64) return fail(res, 400, 'image_rejected');
+  }
+
+  let r;
+  try {
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            ...images.map(im => ({ type: 'image', source: { type: 'base64', media_type: im.type, data: im.data } })),
+            { type: 'text', text: prompt + '\nReply with only the JSON object, no other text.' },
+          ],
+        }],
+      }),
+    });
+  } catch {
+    return fail(res, 502, 'network');
+  }
+  if (r.status === 429 || r.status === 529) return fail(res, 429, 'rate_limited');
+  if (r.status === 400) return fail(res, 400, 'image_rejected');
+  if (!r.ok) return fail(res, 502, 'server_error');
+
+  const out = await r.json().catch(() => null);
+  const text = (out?.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  const json = firstJson(text);
+  if (!json) return fail(res, 502, 'invalid_json');
+  return res.status(200).json(json);
+};

@@ -582,10 +582,31 @@ const canvas = $('#scanCanvas'), ctx = canvas.getContext('2d');
 
 // 'ok' | 'checking' | 'none' (not inside Claude) | 'no-images' | 'declined'
 let readerState = 'checking';
+// On the hosted site there is no built-in Claude, so the same request goes to our own
+// /api/read function, which calls Claude with the site's API key. Same prompt, same answer shape.
+const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b); });
+const serverReader = {
+  async json(prompt, { images, signal }) {
+    const imgs = await Promise.all(images.map(async b => ({ type: b.type || 'image/jpeg', data: await blobB64(b) })));
+    let r;
+    try { r = await fetch('api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, images: imgs }), signal }); }
+    catch (e) { throw Object.assign(new Error('network'), { code: e?.name === 'AbortError' ? 'cancelled' : 'network' }); }
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw Object.assign(new Error('read failed'), { code: j?.code || 'server_error' });
+    return j;
+  },
+};
+const SERVER_LIMITS = { images: { mediaTypes: ['image/jpeg', 'image/png', 'image/webp'], maxInputBytes: 2_200_000, maxCount: 2 } };
 const readerReady = (async () => {
   const s = window.claude?.use ? await window.claude.use('sample').catch(() => null) : null;
   sampleLimits = s && await s.limits().catch(() => null);
   if (sampleLimits?.images) sampleFn = s;
+  if (!s) {
+    try {
+      const j = await (await fetch('api/read', { cache: 'no-store' })).json();
+      if (j?.ok) { sampleFn = serverReader; sampleLimits = SERVER_LIMITS; }
+    } catch {}
+  }
   readerState = sampleFn ? 'ok' : s ? 'no-images' : 'none';
 })();
 const READER_HELP = {
@@ -806,11 +827,13 @@ function drawRead(busy) {
 }
 
 const READ_ERRORS = {
-  rate_limited: 'Too many reads right now. Wait a moment, then tap Read again.',
-  session_expired: 'Sign in to Claude again, then tap Read again.',
-  image_rejected: 'That photo could not be used. Try another photo.',
-  refused: 'Claude could not read this photo. Try another photo.',
-  invalid_json: 'The answer came back garbled. Tap Read again.',
+  rate_limited: 'Too many reads right now. Wait a moment, then tap Retake.',
+  session_expired: 'Sign in to Claude again, then tap Retake.',
+  image_rejected: 'That photo could not be used. Tap Retake and try another photo.',
+  refused: 'The photo could not be read. Tap Retake and try another photo.',
+  invalid_json: 'The answer came back garbled. Tap Retake.',
+  network: 'No connection to the reader. Check your internet, then tap Retake.',
+  server_error: 'The reader had a problem. Tap Retake to try again.',
 };
 async function readWithClaude(again = false) {
   readCtl?.abort();
@@ -837,7 +860,7 @@ async function readWithClaude(again = false) {
   } catch (e) {
     if (e?.code === 'cancelled') return;
     readBusy = false; readFailed = true;
-    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'images_unavailable'].includes(e?.code)) {
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'images_unavailable', 'not_configured', 'forbidden'].includes(e?.code)) {
       sampleFn = null;
       readerState = ['not_granted', 'sampling_disabled'].includes(e.code) ? 'declined' : 'no-images';
       runScan(); return;
