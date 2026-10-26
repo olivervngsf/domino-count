@@ -72,7 +72,7 @@ const live = (() => {
       L.conns.push(c);
       c.on('open', () => { try { c.send({ t: 'state', s: snapshot() }); } catch {} paint(); });
       c.on('data', m => onGuestMsg(m, c));
-      c.on('close', () => { L.conns = L.conns.filter(x => x !== c); paint(); });
+      c.on('close', () => { L.conns = L.conns.filter(x => x !== c); if (c.pid) render(); else paint(); });
       c.on('error', () => {});
     });
   }
@@ -81,6 +81,8 @@ const live = (() => {
     if (!m || typeof m !== 'object') return;
     // A guest that hasn't got the game yet asks for it (the first message after connecting can be lost).
     if (m.t === 'hello') { try { c.send({ t: 'state', s: snapshot() }); } catch {} return; }
+    // A guest says which player they are: the host shows them as checked in.
+    if (m.t === 'me') { const pid = typeof m.pid === 'string' ? m.pid : null; if (c.pid !== pid) { c.pid = pid; render(); } return; }
     if (m.t === 'join' && typeof m.name === 'string') {
       const name = m.name.trim().slice(0, 20);
       if (!name || state.screen === 'over' || state.players.length >= MAX) { sync(); return; }
@@ -149,7 +151,7 @@ const live = (() => {
       L.hostConn = c;
       c.on('data', m => { if (m?.t === 'state' && c === L.hostConn) onState(m.s); });
       c.on('open', () => {
-        clearTimeout(L.joinTimer);
+        clearTimeout(L.joinTimer); L.toldMe = undefined;
         if (L.status !== 'in') { L.status = 'in'; L.perr = ''; }
         store.set({ role: 'guest', code, me: L.me, name: L.myName });
         // Keep the code in the address, so a reload goes straight back into this game.
@@ -169,7 +171,7 @@ const live = (() => {
     if (L.me && !state.players.some(p => p.id === L.me)) L.me = null;
     if (!L.me && L.joinName) {
       const p = state.players.find(x => x.name.toLowerCase() === L.joinName.toLowerCase());
-      if (p) { L.me = p.id; L.myName = p.name; L.joinName = ''; remember(); }
+      if (p) { L.me = p.id; L.myName = p.name; L.joinName = ''; remember(); flush(); }
     }
     if (!L.me && L.joinName && state.players.length >= MAX) { L.joinName = ''; L.pnerr = `The game is full (${MAX} players). Ask the host to make room.`; }
     if (L.me) L.myName = playerName(L.me) || L.myName;
@@ -213,6 +215,7 @@ const live = (() => {
     if (!c?.open) return;
     try {
       if (!L.lastAt) c.send({ t: 'hello' });
+      if (L.me !== L.toldMe) { c.send({ t: 'me', pid: L.me }); L.toldMe = L.me; }
       if (L.joinName && !L.me) c.send({ t: 'join', name: L.joinName });
       Object.values(L.outbox).forEach(o => c.send({ t: 'score', ...o }));
     } catch {}
@@ -382,7 +385,7 @@ const live = (() => {
       case 'host': leave(); return;
       case 'leave': ask('Leave this game? Your scores stay on the host’s phone.').then(ok => ok && leave()); return;
       case 'join': joinGame(L.pcode); return;
-      case 'pick': L.me = b.dataset.id; L.myName = playerName(L.me); remember(); break;
+      case 'pick': L.me = b.dataset.id; L.myName = playerName(L.me); remember(); flush(); break;
       case 'newme': addMe(); return;
       case 'mode': L.mode = v; break;
       case 'key':
@@ -452,6 +455,7 @@ const live = (() => {
     get guest() { return L.guest; },
     send, sync, paint, boot,
     render: paintGuest,
+    here: pid => !L.guest && L.conns.some(c => c.open && c.pid === pid),
     phone: (pid, r) => (state.by?.[`${pid}:${r}`] ? PHONE : ''),
     playRound,
   };

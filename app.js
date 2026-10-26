@@ -88,6 +88,9 @@ const playerName = id => state.players.find(p => p.id === id)?.name || '';
 const roundFull = r => state.players.length > 0 && state.players.every(p => score(p.id, r) != null);
 const firstOpen = r => state.players.findIndex(p => score(p.id, r) == null);
 const lastScoredRound = () => Object.keys(state.scores).reduce((m, k) => Math.max(m, +k.split(':')[1]), -1);
+// Checked in on their own phone (live play).
+const here = pid => typeof live !== 'undefined' && live.here(pid);
+const PHONE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg>';
 const fromPhone = (pid, r) => (typeof live !== 'undefined' ? live.phone(pid, r) : '');
 const totalBefore = (pid, r) => doneTotal(pid) - (roundFull(r) ? score(pid, r) || 0 : 0);
 
@@ -135,7 +138,7 @@ function renderSetup() {
   $('#orderHint').classList.toggle('hidden', !editPlayers);
   $('#playerList').innerHTML = !n ? '<p class="empty-note">No players yet. Add names above.</p>'
     : editPlayers ? editRows('setup')
-    : state.players.map((p, i) => `<div class="prow"><span class="ord">${pad(i + 1)}</span><span class="nm">${esc(p.name)}</span></div>`).join('');
+    : state.players.map((p, i) => `<div class="prow"><span class="ord">${pad(i + 1)}</span><span class="nm">${esc(p.name)}</span>${here(p.id) ? `<span class="here">${PHONE_ICON}Here</span>` : ''}</div>`).join('');
   const going = Object.keys(state.scores).length > 0;
   $('#gameSub').textContent = going ? `Domino Train · game in progress` : 'Domino Train · new game';
   $('#startGame').disabled = n < 2;

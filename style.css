@@ -387,3 +387,5 @@ dialog.alert p { margin: 0 0 18px; font-size: 17px; font-weight: 600; line-heigh
 .toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30; width: min(440px, calc(100% - 32px)); padding: 14px 16px; border-radius: 16px; background: var(--ink); color: var(--paper); font-size: 15px; font-weight: 600; box-shadow: 0 12px 30px rgb(0 0 0 / .25); }
 .ordiv { display: flex; align-items: center; gap: 12px; color: var(--ink2); font-size: 13px; font-weight: 600; }
 .ordiv::before, .ordiv::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.here { display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px 0 7px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.here svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
