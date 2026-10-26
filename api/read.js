@@ -10,6 +10,7 @@ const STRONG = process.env.READ_MODEL || 'claude-sonnet-5-5';
 const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_B64 = 4_000_000; // ~3 MB per image after base64; Vercel caps a request at 4.5 MB
 
+const checkOrigin = require('./_origin.js');
 const fail = (res, status, code) => res.status(status).json({ code });
 
 function firstJson(text) {
@@ -19,18 +20,13 @@ function firstJson(text) {
 }
 
 module.exports = async function handler(req, res) {
+  if (!checkOrigin(req, res)) return;
   const key = process.env.ANTHROPIC_API_KEY;
   if (req.method === 'GET') return res.status(200).json({ ok: !!key });
   if (req.method !== 'POST') return fail(res, 405, 'method_not_allowed');
   if (!key) return fail(res, 503, 'not_configured');
 
   // Only this site's own pages may use the key.
-  const origin = req.headers.origin;
-  if (origin) {
-    let host = '';
-    try { host = new URL(origin).host; } catch {}
-    if (host !== req.headers.host) return fail(res, 403, 'forbidden');
-  }
 
   const { prompt, images } = req.body || {};
   if (typeof prompt !== 'string' || !prompt || prompt.length > 8000) return fail(res, 400, 'bad_request');

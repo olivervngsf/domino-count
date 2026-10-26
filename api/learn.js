@@ -5,21 +5,17 @@
 const { put } = require('@vercel/blob');
 
 const MAX_B64 = 1_500_000; // ~1.1 MB jpeg; the page sends a downscaled copy
+const checkOrigin = require('./_origin.js');
 const fail = (res, status, code) => res.status(status).json({ code });
 const num = v => Number.isFinite(+v) ? +v : null;
 
 module.exports = async function handler(req, res) {
+  if (!checkOrigin(req, res)) return;
   const on = !!process.env.BLOB_READ_WRITE_TOKEN;
   if (req.method === 'GET') return res.status(200).json({ ok: on });
   if (req.method !== 'POST') return fail(res, 405, 'method_not_allowed');
   if (!on) return fail(res, 503, 'not_configured');
 
-  const origin = req.headers.origin;
-  if (origin) {
-    let host = '';
-    try { host = new URL(origin).host; } catch {}
-    if (host !== req.headers.host) return fail(res, 403, 'forbidden');
-  }
 
   const { image, tiles, set, source, phone } = req.body || {};
   if (typeof image !== 'string' || !image || image.length > MAX_B64) return fail(res, 400, 'bad_image');

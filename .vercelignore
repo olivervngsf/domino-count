@@ -1,0 +1,7 @@
+ios/
+www/
+tools/
+tests/
+data/
+scripts/
+capacitor.config.json

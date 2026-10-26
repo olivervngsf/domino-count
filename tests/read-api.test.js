@@ -38,5 +38,10 @@ const call = async (req) => { const res = mkRes(); await handler({ headers: { ho
   global.fetch = async (u, o) => { models.push(JSON.parse(o.body).model); return reply([]); };
   r = await call({ method: 'POST', body: { prompt: 'read', images: [img] } });
   assert.strictEqual(models.length, 2); // nothing found -> strong model tries
+  // The iPhone app (capacitor://localhost) is allowed, with CORS headers; preflight answers 204.
+  r = await call({ method: 'OPTIONS', headers: { host: 'domino-train.vercel.app', origin: 'capacitor://localhost' } });
+  assert.strictEqual(r.code, 204); assert.strictEqual(r.headers['Access-Control-Allow-Origin'], 'capacitor://localhost');
+  r = await call({ method: 'GET', headers: { host: 'domino-train.vercel.app', origin: 'capacitor://localhost' } });
+  assert.deepStrictEqual(r.body, { ok: true });
   console.log('read api tests passed');
 })().catch(e => { console.error(e); process.exit(1); });

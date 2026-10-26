@@ -55,3 +55,15 @@ node tests/scan.test.js
    ```
    Ship `model/`, play a few nights, run `python tools/shadow_report.py data/raw`, and switch
    `model/meta.json` to `"mode": "on"` when the phone's sure answers are ~99% right. Retrain now and then.
+
+## iPhone app (Capacitor)
+
+The same web app runs inside a native iPhone shell (`ios/`, Swift Package Manager, no CocoaPods).
+On a Mac with Xcode:
+```
+npm install
+npm run ios          # copies the app into www/, syncs it into ios/, opens Xcode
+```
+In Xcode: pick your Team under Signing & Capabilities, then run on a phone or Product → Archive to upload.
+The app calls the live site's API (`https://domino-train.vercel.app/api/...`); invite links open the website,
+so friends without the app can still join. After changing web files, run `npm run ios` again.

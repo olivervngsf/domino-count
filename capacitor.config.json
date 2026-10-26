@@ -1,0 +1,9 @@
+{
+  "appId": "design.vnguyen.dominotrain",
+  "appName": "Domino Train",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F4F1EA"
+  }
+}

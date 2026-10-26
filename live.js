@@ -120,7 +120,8 @@ const live = (() => {
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 5000);
   }
   async function share() {
-    const url = location.href.split(/[?#]/)[0] + '?join=' + L.code;
+    // Invite links always open the website, so friends without the app can join from any phone.
+    const url = (window.Capacitor?.isNativePlatform?.() ? 'https://domino-train.vercel.app/' : location.href.split(/[?#]/)[0]) + '?join=' + L.code;
     try {
       if (navigator.share) { await navigator.share({ title: 'Domino Train', text: `Join my Domino Train game. Code ${L.code}`, url }); return; }
       await navigator.clipboard.writeText(url);
