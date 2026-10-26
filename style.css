@@ -393,3 +393,4 @@ dialog.alert p { margin: 0 0 18px; font-size: 17px; font-weight: 600; line-heigh
 .invite-note { justify-content: space-between; }
 #overHint { margin-top: 12px; }
 .scan-area canvas { max-height: 220px; }
+.linkbtn.center { align-self: center; padding: 8px 0; font-size: 15px; }

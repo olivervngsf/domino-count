@@ -240,14 +240,20 @@ const live = (() => {
     render(); scrollTo({ top: 0 });
     if (code) joinGame(code);
   }
-  function leave() {
+  // mode 'fresh' = Host a new game: empty players list and scores, a new join code (old names stay as Recent).
+  function leave(mode) {
     try { L.hostConn?.close(); } catch {}
     try { L.peer?.destroy(); } catch {}
     Object.assign(L, { guest: false, peer: null, hostConn: null, me: null, myName: '', joinName: '', outbox: {}, target: null, flash: null, code: '', lastAt: 0, round: undefined });
     // Keep this phone's host code so guests already joined stay connected; a guest's link is dropped.
-    const prev = store.get(); store.set(prev.role === 'host' ? prev : {});
+    const prev = store.get(); store.set(prev.role === 'host' && mode !== 'fresh' ? prev : {});
     for (const d of document.querySelectorAll('dialog[open]')) d.close();
     state = load();
+    if (mode === 'fresh') {
+      const recent = [...state.players.map(p => p.name), ...(state.recent || [])].filter((n, i, a) => a.findIndex(x => x.toLowerCase() === n.toLowerCase()) === i).slice(0, 8);
+      Object.assign(state, { players: [], scores: {}, by: {}, play: 0, current: 0, screen: 'setup', recent });
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+    }
     history.replaceState(null, '', location.pathname);
     render(); scrollTo({ top: 0 });
     startHost();
@@ -268,10 +274,12 @@ const live = (() => {
     let h = head();
     if (L.status === 'join' || L.status === 'joining') {
       h += intro('You’re invited', 'Join the game', 'Enter the code the host shared with you.')
-        + `<label for="pcode" class="sr-only">Game code</label><input id="pcode" class="pin-in" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="···" value="${esc(L.pcode)}">`
+        + `<label for="pcode" class="sr-only">Game code</label><input id="pcode" name="game-code" class="pin-in" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="one-time-code" data-1p-ignore data-lpignore="true" placeholder="···" value="${esc(L.pcode)}">`
         + (L.perr ? `<p class="perr" role="alert">${esc(L.perr)}</p>` : '')
         + `<button class="btn-ink tall" type="button" data-g="join"${L.status === 'joining' ? ' disabled' : ''}>${L.status === 'joining' ? 'Checking…' : 'Join'}</button>`
-        + `<div class="ordiv">or</div><button class="btn-acc tall" type="button" data-g="host">${hasOwnGame() ? 'Back to my game' : 'Host a new game'}</button>`;
+        + `<div class="ordiv">or</div>`
+        + (hasOwnGame() ? `<button class="btn-acc tall" type="button" data-g="host">Back to my game</button><button class="linkbtn center" type="button" data-g="fresh">Host a new game instead</button>`
+          : `<button class="btn-acc tall" type="button" data-g="fresh">Host a new game</button>`);
     } else if (!L.lastAt) {
       h += intro('Code accepted ✓', 'Getting the game…', 'One moment while the host’s phone sends the players.');
     } else if (!L.me && L.joinName) {
@@ -385,6 +393,10 @@ const live = (() => {
     const a = b.dataset.g, v = b.dataset.v, r = playRound();
     switch (a) {
       case 'host': leave(); return;
+      case 'fresh':
+        if (!hasOwnGame()) { leave('fresh'); return; }
+        ask('Start a new game? The game saved on this phone will be cleared. Names stay under Recent players.').then(ok => ok && leave('fresh'));
+        return;
       case 'leave': ask('Leave this game? Your scores stay on the host’s phone.').then(ok => ok && leave()); return;
       case 'join': joinGame(L.pcode); return;
       case 'pick': L.me = b.dataset.id; L.myName = playerName(L.me); remember(); flush(); break;
@@ -436,8 +448,9 @@ const live = (() => {
 
   // ---------- start ----------
   // The app opens on Join / Host, unless a game is under way on this phone: then it goes straight back to it.
+  // Anything saved on this phone (names added or scores in) counts as "my game".
   const hasOwnGame = () => {
-    try { const g = JSON.parse(localStorage.getItem(KEY)) || {}; return (g.players || []).length >= 2 && (g.screen === 'game' || g.screen === 'over'); }
+    try { const g = JSON.parse(localStorage.getItem(KEY)) || {}; return (g.players || []).length > 0 || Object.keys(g.scores || {}).length > 0; }
     catch { return false; }
   };
   function boot() {
