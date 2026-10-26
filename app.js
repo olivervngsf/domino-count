@@ -828,7 +828,7 @@ function drawRead(busy) {
     ctx.fillStyle = '#FFFFFF'; ctx.font = `800 ${Math.round(fs * 0.7)}px "Inter Tight", system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(i + 1), cx, cy + 1);
-    labelBoxes.push({ i, x: bx, y: by, w: bw, h: bh });
+    labelBoxes.push({ i, x: bx, y: by, w: bw, h: bh, px: cx, py: cy, pr: r * 1.4 });
   });
 }
 
@@ -897,7 +897,7 @@ canvas.addEventListener('click', e => {
   const ox = (rect.width - canvas.width * k) / 2, oy = (rect.height - canvas.height * k) / 2;
   const x = (e.clientX - rect.left - ox) / k, y = (e.clientY - rect.top - oy) / k;
   if (scanMode === 'read') {
-    const hit = labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    const hit = labelBoxes.find(b => Math.hypot(x - b.px, y - b.py) <= b.pr) || labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
     if (hit) { readOpen = hit.i; renderRead(); $('#readTiles').children[hit.i]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     return;
   }
