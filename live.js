@@ -420,6 +420,9 @@ const live = (() => {
       $('#inviteShare').disabled = !on;
       $('#inviteShare').textContent = L.copied ? 'Copied ✓' : 'Share link';
     }
+    // Like the prototype's "This round" card: how many phones are linked.
+    const lt = $('#liveTxt');
+    if (lt) lt.textContent = on ? ` · ${n} phone${n === 1 ? '' : 's'} connected` : '';
     const chip = $('#codeChip');
     if (chip) {
       chip.classList.toggle('hidden', !on);
