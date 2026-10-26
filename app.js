@@ -199,6 +199,9 @@ function renderGame() {
 
   // score this round / fix a saved round
   $('#scoreH').textContent = past ? `Fix round ${pad(r + 1)}` : 'Score this round';
+  $('#scoreBlock').classList.toggle('hidden', !editGame);
+  $('#glanceEdit').textContent = editGame ? 'Done' : 'Edit';
+  $('#glanceEdit').setAttribute('aria-pressed', editGame);
   $('#editBtn').textContent = editGame ? 'Done' : 'Edit';
   $('#editBtn').setAttribute('aria-pressed', editGame);
   $('#rotateBtn').classList.toggle('hidden', !editGame);
@@ -313,7 +316,7 @@ $('#board').addEventListener('click', e => {
 });
 $('#glanceCards').addEventListener('click', e => {
   const b = e.target.closest('[data-key]');
-  if (b) openKey(b.dataset.key, state.current, 'type');
+  if (b) openKey(b.dataset.key, state.current);
 });
 
 // ---------- players ----------
@@ -336,6 +339,7 @@ $('#recentList').addEventListener('click', e => {
 });
 $('#reorderBtn').onclick = () => { editPlayers = !editPlayers; render(); };
 $('#editBtn').onclick = () => { editGame = !editGame; render(); };
+$('#glanceEdit').onclick = () => { editGame = !editGame; render(); if (editGame) $('#scoreBlock').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 $('#rotateBtn').onclick = () => { if (state.players.length > 1) { state.players.push(state.players.shift()); save(); } };
 
 // In-page confirm (native confirm() is blocked in some embeds).
@@ -421,7 +425,11 @@ $('#roundPlayers').addEventListener('click', e => {
 
 // ---------- score sheet (Photo / Type) ----------
 let keyPid, keyR, typed = '', keyMode = 'type';
-function openKey(pid, r, mode) {
+// Photo or Type: the last one used is remembered on this phone.
+const MODE_KEY = 'domino-train-mode';
+const lastMode = () => { try { return localStorage.getItem(MODE_KEY) === 'photo' ? 'photo' : 'type'; } catch { return 'type'; } };
+const rememberMode = m => { try { localStorage.setItem(MODE_KEY, m); } catch {} };
+function openKey(pid, r, mode = lastMode()) {
   keyPid = pid; keyR = r; keyMode = mode;
   const v = score(pid, r);
   typed = v != null ? String(v) : '';
@@ -444,8 +452,8 @@ function renderKey() {
   $('#keySave').textContent = `Save ${typed === '' ? '0' : typed} for ${playerName(keyPid)} →`;
   $('#keyRemove').classList.toggle('hidden', score(keyPid, keyR) == null);
 }
-$('#tabPhoto').onclick = () => { keyMode = 'photo'; renderKey(); };
-$('#tabType').onclick = () => { keyMode = 'type'; renderKey(); };
+$('#tabPhoto').onclick = () => { keyMode = 'photo'; rememberMode('photo'); renderKey(); };
+$('#tabType').onclick = () => { keyMode = 'type'; rememberMode('type'); renderKey(); };
 $('#keypad').addEventListener('click', e => {
   const k = e.target.closest('[data-k]')?.dataset.k;
   if (k == null) return;

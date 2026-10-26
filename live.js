@@ -17,7 +17,7 @@ const live = (() => {
     conns: [], peer: null, hostConn: null,
     // guest-only
     me: null, myName: '', pcode: '', perr: '', pnew: '', pnerr: '', joinName: '',
-    outbox: {}, typed: '', mode: 'type', changing: false, lastAt: 0, notice: '', target: null, flash: null,
+    outbox: {}, typed: '', mode: (() => { try { return localStorage.getItem('domino-train-mode') === 'photo' ? 'photo' : 'type'; } catch { return 'type'; } })(), view: null, changing: false, lastAt: 0, notice: '', target: null, flash: null,
   };
 
   // ---------- shared ----------
@@ -195,7 +195,7 @@ const live = (() => {
         busy.forEach(d => d.close());
         if (busy.length) L.notice = `The host started round ${s.play + 1}. Add your score for this round.`;
       }
-      L.round = s.play; L.changing = false; L.typed = ''; L.target = null; L.flash = null;
+      L.round = s.play; L.changing = false; L.typed = ''; L.target = null; L.flash = null; L.view = null;
     }
     render();
   }
@@ -307,6 +307,23 @@ const live = (() => {
     if (old === 'pnew' || old === 'pcode') { const i = $('#' + old); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   }
   const mini = r => `<div class="minihero"><div><span class="lbl">Round</span><span class="hn">${pad(r + 1)}<small>/${roundCount()}</small></span></div><div><span class="lbl">Double</span><span class="hn acc">${roundDouble(r) ?? '—'}</span></div></div>`;
+  // Guests can look back through saved rounds (‹ ›); Back to Round N returns to where the host is.
+  const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+  function nav(r, live) {
+    const past = r < live;
+    return `<div class="hero2 g${past ? ' past' : ''}"><button class="harr" type="button" data-g="gprev" aria-label="Previous round"${r === 0 ? ' disabled' : ''}>${ARROW}</button>`
+      + `<div class="hc"><span class="lbl">${past ? 'Saved round' : 'Round'}</span><span class="hn">${pad(r + 1)}<small>/${roundCount()}</small></span></div>`
+      + `<div class="hc hc2"><span class="lbl">Double</span><span class="hn acc">${roundDouble(r) ?? '—'}</span></div>`
+      + `<button class="harr" type="button" data-g="gnext" aria-label="Next round"${past ? '' : ' disabled'}><span class="flip">${ARROW}</span></button></div>`;
+  }
+  function pastScreen(r, live) {
+    const rows = state.players.map(p => { const v = score(p.id, r); return `<div${p.id === L.me ? ' class="mine"' : ''}><span>${esc(p.name)}${p.id === L.me ? ' (you)' : ''}</span><b>${v ?? '–'}</b></div>`; }).join('');
+    const mine = score(L.me, r);
+    return nav(r, live)
+      + `<div class="sentlist"><span class="lbl">Saved scores · round ${pad(r + 1)}</span><div class="who-sent scores">${rows}</div></div>`
+      + (r === live - 1 && mine != null ? `<button class="btn-line" type="button" data-g="fix">Fix my score · +${esc(mine)}</button>` : '')
+      + `<button class="btn-ink tall" type="button" data-g="greset">Back to Round ${pad(live + 1)} →</button>`;
+  }
   const sentVal = (pid, r) => { const o = L.outbox[`${pid}:${r}`]; return o ? o.v : score(pid, r); };
   // Players with no score yet this round (not me): a guest can score for them, e.g. someone without a phone.
   const others = r => state.players.filter(p => p.id !== L.me && sentVal(p.id, r) == null);
@@ -330,7 +347,7 @@ const live = (() => {
     let h = `<div class="intro"><h1 class="big g s36">${title}</h1>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
     if (photoOk) h += `<div class="tabs" role="group" aria-label="How to add the score"><button type="button" data-g="mode" data-v="photo" aria-pressed="${photo}">Photo</button><button type="button" data-g="mode" data-v="type" aria-pressed="${!photo}">Type</button></div>`;
     if (photo) {
-      return h + `<div class="finder"><i></i><i></i><i></i><i></i><b>Lay the tiles face up</b><span>Then take one photo</span></div>`
+      return h + `<button class="finder tap" type="button" data-g="photo"><i></i><i></i><i></i><i></i><b>Lay the tiles face up</b><span>Tap here to take the photo</span></button>`
         + `<button class="btn-ink tall" type="button" data-g="photo">Take photo</button>`;
     }
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => `<button type="button" data-g="key" data-v="${d}">${d}</button>`).join('')
@@ -343,6 +360,7 @@ const live = (() => {
   function scoreScreen() {
     const r = playRound(), k = `${L.me}:${r}`, t = L.target;
     const notice = L.notice ? `<p class="perr" role="alert">${esc(L.notice)}</p>` : '';
+    if (L.view != null && L.view < r && !t) return pastScreen(L.view, r);
     if (t?.kind === 'fix') {
       return mini(t.r) + notice + entry({ pid: L.me, r: t.r, title: `Fix round ${pad(t.r + 1)}`, sub: `You have +${esc(sentVal(L.me, t.r))}. Type the right points; the host sees the change.`, photoOk: false, label: v => `Save fix · +${v} →` }) + cancel;
     }
@@ -358,13 +376,13 @@ const live = (() => {
     if (v != null && v !== '' && !L.changing) {
       const cnt = state.players.filter(p => sentVal(p.id, r) != null).length, by = state.by?.[k];
       const note = pend ? 'Sending to the host…' : by === L.me || by === 1 ? 'Sent to the host ✓' : by ? `${esc(playerName(by))} added your score` : 'Host added your score';
-      return mini(r) + notice + flashLine() + `<div class="sent"><span class="ok">${ICON.check}</span><span class="lbl">${note}</span><b>+${esc(v)}</b>`
+      return nav(r, r) + notice + flashLine() + `<div class="sent"><span class="ok">${ICON.check}</span><span class="lbl">${note}</span><b>+${esc(v)}</b>`
         + `<button class="btn-line slim dark" type="button" data-g="change">Change</button></div>`
         + `<div class="sentlist"><span class="lbl">${cnt} of ${state.players.length} sent</span><div class="who-sent">`
         + state.players.map(p => { const d = sentVal(p.id, r) != null; return `<div><span>${esc(p.name)}${p.id === L.me ? ' (you)' : ''}</span><span class="s ${d ? 'y' : 'n'}">${d ? 'Sent' : 'Waiting'}</span></div>`; }).join('')
         + `</div><span class="fine">Other scores stay hidden until the next round starts.</span></div>` + moreLinks(r);
     }
-    return mini(r) + notice + flashLine() + entry({ pid: L.me, r, title: 'Your score', label: v => `Send ${v} to the host →`, empty: 'Type your points' }) + moreLinks(r);
+    return nav(r, r) + notice + flashLine() + entry({ pid: L.me, r, title: 'Your score', label: v => `Send ${v} to the host →`, empty: 'Type your points' }) + moreLinks(r);
   }
   function addMe() {
     const n = L.pnew.trim();
@@ -401,7 +419,7 @@ const live = (() => {
       case 'join': joinGame(L.pcode); return;
       case 'pick': L.me = b.dataset.id; L.myName = playerName(L.me); remember(); flush(); break;
       case 'newme': addMe(); return;
-      case 'mode': L.mode = v; break;
+      case 'mode': L.mode = v; try { localStorage.setItem('domino-train-mode', v); } catch {} break;
       case 'key':
         if (v === 'clear') L.typed = ''; else if (v === 'del') L.typed = L.typed.slice(0, -1);
         else if (L.typed.length < 3) L.typed = (L.typed === '0' ? '' : L.typed) + v;
@@ -410,9 +428,12 @@ const live = (() => {
       case 'send': if (L.typed !== '') { const t = tgt(); send(t.pid, t.r, +L.typed, t.fix); } return;
       case 'change': L.changing = true; L.typed = String(sentVal(L.me, r) ?? ''); L.mode = 'type'; L.flash = null; break;
       case 'photo': { const t = tgt(); keyPid = t.pid; keyR = t.r; $('#camInput').click(); return; }
-      case 'fix': L.target = { kind: 'fix', r: r - 1 }; L.typed = String(sentVal(L.me, r - 1) ?? ''); L.notice = ''; L.flash = null; break;
+      case 'fix': L.view = null; L.target = { kind: 'fix', r: r - 1 }; L.typed = String(sentVal(L.me, r - 1) ?? ''); L.notice = ''; L.flash = null; break;
       case 'others': L.target = { kind: 'pick' }; L.notice = ''; L.flash = null; break;
       case 'other': L.target = { kind: 'other', pid: b.dataset.id }; L.typed = ''; break;
+      case 'gprev': L.view = Math.max(0, (L.view ?? r) - 1); L.target = null; break;
+      case 'gnext': L.view = (L.view ?? r) + 1; if (L.view >= r) L.view = null; break;
+      case 'greset': L.view = null; break;
       case 'cancel': L.target = null; L.typed = ''; L.notice = ''; break;
     }
     gpaint();
