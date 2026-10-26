@@ -813,16 +813,22 @@ function drawRead(busy) {
     if (!p) return;
     const sure = readSure[i] !== false;
     const bx = p.l * canvas.width, by = p.t * canvas.height, bw = (p.r - p.l) * canvas.width, bh = (p.b - p.t) * canvas.height;
-    ctx.strokeStyle = sure ? '#F4F1EA' : '#D64A12'; ctx.lineWidth = Math.max(3, fs / 4);
+    // See-through frame and pin, so the numbers on the tile stay readable.
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = sure ? '#F4F1EA' : '#D64A12'; ctx.lineWidth = Math.max(2, fs / 6);
     ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, fs / 3); ctx.stroke();
-    // Numbered pin on the tile's top-left corner, like the list.
-    const r = fs * 0.85, cx = Math.min(Math.max(bx + r * 0.6, r), canvas.width - r), cy = Math.min(Math.max(by + r * 0.6, r), canvas.height - r);
+    // Small numbered pin sitting outside the tile's top-left corner, like the list.
+    const r = fs * 0.6;
+    const cx = Math.min(Math.max(bx - r * 0.2, r), canvas.width - r);
+    const cy = by - r * 1.1 >= r ? by - r * 1.1 : Math.min(Math.max(by + bh + r * 1.1, r), canvas.height - r);
+    ctx.globalAlpha = 0.75;
     ctx.fillStyle = sure ? '#111111' : '#D64A12';
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 ${Math.round(fs * 0.95)}px "Inter Tight", system-ui, sans-serif`;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 ${Math.round(fs * 0.7)}px "Inter Tight", system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(i + 1), cx, cy + 1);
-    labelBoxes.push({ i, x: bx, y: by, w: bw, h: bh });
+    labelBoxes.push({ i, x: bx, y: by, w: bw, h: bh, px: cx, py: cy, pr: r * 1.4 });
   });
 }
 
@@ -891,7 +897,7 @@ canvas.addEventListener('click', e => {
   const ox = (rect.width - canvas.width * k) / 2, oy = (rect.height - canvas.height * k) / 2;
   const x = (e.clientX - rect.left - ox) / k, y = (e.clientY - rect.top - oy) / k;
   if (scanMode === 'read') {
-    const hit = labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    const hit = labelBoxes.find(b => Math.hypot(x - b.px, y - b.py) <= b.pr) || labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
     if (hit) { readOpen = hit.i; renderRead(); $('#readTiles').children[hit.i]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     return;
   }
