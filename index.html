@@ -37,15 +37,24 @@
         <p id="orderHint" class="ehint hidden">Drag ⋮⋮ to reorder. Tap a name to rename.</p>
         <div id="playerList"></div>
       </div>
+      <div id="invite" class="invite hidden">
+        <div class="ic"><span>Join code</span><b id="inviteCode">···</b></div>
+        <button id="inviteShare" class="ishare" type="button">Share link</button>
+      </div>
+      <p class="invite-note"><span id="inviteNote"></span><button id="joinOther" class="linkbtn" type="button">Join someone else’s game</button></p>
       <button id="startGame" class="cta dock">Add at least 2 players</button>
     </section>
+
+    <!-- ===== Guest phone (live play) — drawn by live.js ===== -->
+    <section id="guestScreen" class="scr guest hidden" aria-label="Join a game" aria-live="polite"></section>
 
     <!-- ===== Game ===== -->
     <section id="gameScreen" class="scr hidden" aria-label="Game">
       <div class="topbar">
         <button id="endBtn" class="round-btn" aria-label="Back to players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         <span class="brand">Domino Train</span>
-        <button id="settingsBtn" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+        <span class="topbar-r"><button id="codeChip" class="codechip hidden" type="button"></button>
+        <button id="settingsBtn" class="round-btn" aria-label="Game settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button></span>
       </div>
 
       <div id="roundCard" class="hero2">
@@ -249,5 +258,8 @@
 
   <script src="scan.js"></script>
   <script src="app.js"></script>
+  <!-- Live play: PeerJS connects phones directly (free, no server of ours). If it can't load, the app still works on one phone. -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="live.js"></script>
 </body>
 </html>

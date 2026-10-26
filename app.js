@@ -11,7 +11,10 @@ function changeSet(newSet) {
     const [pid, r] = k.split(':'); const nr = +r + shift;
     if (nr >= 0 && nr <= newSet) scores[`${pid}:${nr}`] = v;
   });
-  state.scores = scores; state.set = newSet; state.rounds = newSet;
+  const by = {};
+  Object.keys(state.by || {}).forEach(k => { const [pid, r] = k.split(':'); const nr = +r + shift; if (nr >= 0 && nr <= newSet) by[`${pid}:${nr}`] = 1; });
+  if (Number.isInteger(state.play)) state.play = Math.max(0, state.play + shift);
+  state.scores = scores; state.by = by; state.set = newSet; state.rounds = newSet;
   state.current = Math.min(Math.max(0, state.current + shift), state.rounds - 1);
 }
 // Older saves defaulted to double-12 or 15 → 0; this game is double-15, 15 → 1.
@@ -23,10 +26,13 @@ function load() {
   try { return { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY)) }; }
   catch { return defaultState(); }
 }
+// Live play (live.js): on a guest's phone `state` is a copy of the host's game, so it is never saved here.
+const isGuest = () => typeof live !== 'undefined' && live.guest;
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  if (!isGuest()) try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
   render();
   if ($('#boardDlg').open) renderBoard();
+  if (typeof live !== 'undefined') live.sync();
 }
 
 const roundCount = () => state.rounds;
@@ -34,9 +40,14 @@ const roundCount = () => state.rounds;
 const roundDouble = i => (state.set - i >= 0 ? state.set - i : null);
 const roundLabel = i => (roundDouble(i) === null ? `Round ${i + 1}` : `Double-${roundDouble(i)}`);
 const score = (pid, r) => state.scores[`${pid}:${r}`];
-const setScore = (pid, r, v) => {
+// A guest's score goes to the host's phone. On the host, a score typed here clears the "from their phone" mark,
+// and scoring ahead moves the round guests see.
+const setScore = (pid, r, v, fromGuest) => {
+  if (isGuest()) return live.send(pid, r, v);
   const k = `${pid}:${r}`;
   if (v === '' || v == null || isNaN(v)) delete state.scores[k]; else state.scores[k] = Math.max(0, Math.round(v));
+  if (!fromGuest && state.by) delete state.by[k];
+  if (state.scores[k] != null && r > (state.play ?? 0)) state.play = r;
 };
 const total = pid => Array.from({ length: roundCount() }, (_, r) => score(pid, r) || 0).reduce((a, b) => a + b, 0);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -75,12 +86,18 @@ const playerName = id => state.players.find(p => p.id === id)?.name || '';
 const roundFull = r => state.players.length > 0 && state.players.every(p => score(p.id, r) != null);
 const firstOpen = r => state.players.findIndex(p => score(p.id, r) == null);
 const lastScoredRound = () => Object.keys(state.scores).reduce((m, k) => Math.max(m, +k.split(':')[1]), -1);
+const fromPhone = (pid, r) => (typeof live !== 'undefined' ? live.phone(pid, r) : '');
 const totalBefore = (pid, r) => doneTotal(pid) - (roundFull(r) ? score(pid, r) || 0 : 0);
 
 // ---------- render ----------
 let editPlayers = false, editGame = false, landed = null;
 
 function render() {
+  $('#guestScreen').classList.toggle('hidden', !isGuest());
+  if (isGuest()) {
+    ['#setupScreen', '#gameScreen', '#overScreen', '#fab'].forEach(id => $(id).classList.add('hidden'));
+    return live.render();
+  }
   const scr = state.players.length < 2 && state.screen !== 'setup' ? 'setup' : state.screen;
   $('#setupScreen').classList.toggle('hidden', scr !== 'setup');
   $('#gameScreen').classList.toggle('hidden', scr !== 'game');
@@ -90,6 +107,7 @@ function render() {
   if (scr === 'game') renderGame();
   if (scr === 'over') renderOver();
   landed = null;
+  if (typeof live !== 'undefined') live.paint();
 }
 
 function editRows(ctx) {
@@ -151,7 +169,7 @@ function renderGame() {
   $('#glanceCards').innerHTML = state.players.map((p, i) => {
     const v = score(p.id, r), has = v != null, next = i === open;
     return `<button class="rk ${has ? 'has' : 'todo'}${next ? ' next' : ''}" type="button" data-key="${p.id}" aria-label="${esc(p.name)}: ${has ? v + ' points this round. Change' : 'no score yet. Add score'}">
-      <span class="rk-l"><span class="rk-n">${esc(p.name)}</span><em>Total ${totalBefore(p.id, r)}</em></span>
+      <span class="rk-l"><span class="rk-n">${esc(p.name)}${fromPhone(p.id, r)}</span><em>Total ${totalBefore(p.id, r)}</em></span>
       <span class="rk-r">${has ? `<i class="ok-dot" aria-hidden="true">${ICON.check}</i><b>+${v}</b>` : ''}</span></button>`;
   }).join('');
   $('#glanceNext').classList.toggle('hidden', !full);
@@ -168,7 +186,7 @@ function renderGame() {
   $('#roundPlayers').innerHTML = editGame ? editRows('game') : state.players.map((p, i) => {
     const v = score(p.id, r), on = i === open;
     return `<div class="srow${on ? ' on' : ''}">
-      <button class="who" type="button" data-key="${p.id}"><span class="o">${pad(i + 1)}${on ? ' · up next' : ''}</span><span class="n">${esc(p.name)}</span>
+      <button class="who" type="button" data-key="${p.id}"><span class="o">${pad(i + 1)}${on ? ' · up next' : ''}</span><span class="n">${esc(p.name)}${fromPhone(p.id, r)}</span>
         <span class="t">${totalBefore(p.id, r)} total ${v != null ? `<b>+${v}</b>` : ''}</span></button>
       <button class="cam" type="button" data-scan="${p.id}" aria-label="Photo of ${esc(p.name)}'s tiles">${ICON.cam}</button>
       <button class="box${v == null ? ' empty' : ''}" type="button" data-key="${p.id}" aria-label="Type score for ${esc(p.name)}">${v ?? '00'}</button>
@@ -239,6 +257,7 @@ function advance() {
   const r = state.current;
   if (!roundFull(r)) return;
   if (r >= roundCount() - 1) { state.screen = 'over'; save(); scrollTo({ top: 0 }); return; }
+  state.play = Math.max(state.play ?? 0, r + 1);
   goRound(r + 1);
 }
 $('#prevRound').onclick = () => goRound(state.current - 1);
@@ -250,7 +269,7 @@ $('#endBtn').onclick = () => { editGame = false; state.screen = 'setup'; save();
 $('#backToGame').onclick = () => { state.screen = 'game'; save(); };
 $('#overNew').onclick = async () => {
   if (!await ask('Start a new game? Scores reset, players stay.')) return;
-  state.scores = {}; state.current = 0; state.screen = 'setup'; save(); scrollTo({ top: 0 });
+  state.scores = {}; state.by = {}; state.play = 0; state.current = 0; state.screen = 'setup'; save(); scrollTo({ top: 0 });
 };
 $('#fab').onclick = () => openBoard();
 $('#fullBoardBtn').onclick = () => openBoard();
@@ -474,7 +493,7 @@ $('#roundsIn').onchange = e => {
 $('#blank50').onchange = e => { state.blank50 = e.target.checked; save(); };
 $('#newGame').onclick = async () => {
   if (!await ask('Start a new game? Scores reset, players stay.')) return;
-  state.scores = {}; state.current = 0; state.screen = 'setup'; save(); $('#settingsDlg').close(); scrollTo({ top: 0 });
+  state.scores = {}; state.by = {}; state.play = 0; state.current = 0; state.screen = 'setup'; save(); $('#settingsDlg').close(); scrollTo({ top: 0 });
 };
 
 // ---------- tile picker ----------
