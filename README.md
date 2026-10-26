@@ -2,16 +2,18 @@
 
 Score keeper for Mexican Train / domino train games. Static web app, no build, works on phone.
 
-- **Players** – add / remove; drag ⠿ or tap **Reorder** (▲▼) to set seating order.
+- **Players screen** – add names (recent names one tap away), **Edit** to drag ⋮⋮, rename or remove. **Start game**.
+- **Game screen** – ‹ Round / Double › header, a **This round** card (tap a player to score), score rows in playing order with **Edit** (drag, rename, rotate who starts), **Finish round**, and a **Game over** screen after the last round.
 - **Rounds** – double-15 down to double-1 (15 rounds). Set and round count adjustable in ⚙︎.
 - **Score each player 3 ways**
   - 📷 **Scan** – snap a photo of leftover tiles.
     - Inside Claude (artifact): Claude reads printed numbers (0–15, any rotation, 6 vs 9). Fix or add tiles after.
     - Tap a wrong label to correct it. Confirmed tiles are saved as **learned tiles** and sent with every scan as a reference sheet, so reading gets better for your set. Manage them in ⚙︎.
     - Anywhere else: local dot counter for pip tiles. Tap to fix misses.
-  - **Tiles** button – pick both halves of each tile.
-  - Type the number.
-- **Scoreboard** – Standings (ranked, tap a player for stats + round chart) and Rounds (box score in seating order: tap a score to edit, tap a round to jump there). Lowest total wins.
+  - **Pick tiles by hand** – both halves of each tile.
+  - **Type** – keypad, or **Went out · 0**.
+- **Scoreboard** – box score in seating order (tap a score to edit, tap a round to jump there). **Full board** / **Standings** lists finished-round totals, lowest on top; tap a player for stats + round chart. Lowest total wins.
+- Look: "Swiss Daylight" from the Domino Train prototype (Inter Tight, ivory and ink, orange accent).
 - Saved in the browser (localStorage). Optional "double-blank = 50".
 
 ## Run
